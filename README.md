@@ -82,13 +82,30 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for module design.
 
 ## 📦 Install
 
-> 🚧 Pre-release. Builds will be published with the first stable tag (`v1.0.0`).
+### CLI (available now)
 
-| Platform | Format                | Link |
-| -------- | --------------------- | ---- |
-| Android  | `.apk` (arm64-v8a)    | _coming_ |
-| Linux    | `.deb` + AppImage     | _coming_ |
-| Windows  | `.exe` (NSIS installer) | _coming_ |
+**One-line install** (Linux / macOS / Termux / Git Bash):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/installer/installer.sh)
+```
+
+Then:
+```bash
+videosensei video.mp4                # compress with Balanced preset
+videosensei video.mp4 -p sensei      # AV1 master (smallest)
+videosensei --help                   # see all options
+```
+
+📖 **Full CLI guide**: [`cli/README.md`](./cli/README.md)
+
+### Native apps (coming soon)
+
+| Platform | Format                | Status |
+| -------- | --------------------- | ------ |
+| Android  | `.apk` (arm64-v8a)    | 🚧 Flutter build in progress |
+| Linux    | `.deb` + AppImage     | 🚧 Flutter build in progress |
+| Windows  | `.exe` (NSIS)         | 🚧 Flutter build in progress |
 
 ---
 

@@ -1,0 +1,37 @@
+{
+  "name": "videosensei",
+  "version": "1.0.0",
+  "description": "Master your video. Sensei-grade clarity. — Modern cross-platform video compressor.",
+  "main": "videosensei.js",
+  "bin": {
+    "videosensei": "./videosensei.js"
+  },
+  "scripts": {
+    "start": "node videosensei.js",
+    "test": "node videosensei.js --help"
+  },
+  "keywords": [
+    "video",
+    "compress",
+    "ffmpeg",
+    "h264",
+    "h265",
+    "av1",
+    "sensei",
+    "jubair"
+  ],
+  "author": "Jubair Sensei <jubairsensei@gmail.com> (https://jubairsensei.com)",
+  "license": "MIT",
+  "homepage": "https://github.com/JubairSenseiDev/VideoSensei",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JubairSenseiDev/VideoSensei.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JubairSenseiDev/VideoSensei/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {}
+}
