@@ -80,6 +80,9 @@ assets/ffmpeg/*/ffprobe.exe
 # Generated docs site
 site/
 
+# Theme extraction output (regenerable via scripts/extract-theme.sh)
+scripts/_extracted/
+
 # Logs
 *.log
 logs/

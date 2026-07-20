@@ -1,12 +1,15 @@
 # 🥋 VideoSensei
 
 > **Master your video. Sensei-grade clarity.**
+> *Hack the size. Keep the clarity.*
 
 A modern, cross-platform **video compression suite** built for 2026.
 Shrink file sizes dramatically — keep the picture crystal clear.
 
 Native apps for **Android**, **Linux**, and **Windows** from a single codebase.
 No CLI gymnastics. No terminal fear. Just open, pick a file, and let the Sensei work.
+
+> 🟢 Part of the **[Jubair Sensei](https://jubairsensei.com)** brand — *Hack, learn, dominate.*
 
 ---
 
@@ -45,6 +48,21 @@ See [`FEATURES.md`](./FEATURES.md) for the full feature matrix.
 
 ---
 
+## 🎨 Theme
+
+The visual identity is inherited from [jubairsensei.com](https://jubairsensei.com) —
+a **terminal-inspired, dark-first** aesthetic with **neon green** as the signature accent.
+
+| Mode  | Background  | Accent (signature)   | Headlines           | Body      | Numbers           |
+| ----- | ----------- | -------------------- | ------------------- | --------- | ----------------- |
+| Dark  | `#0A0A0B`   | `#00FF88` 🟢         | Cabinet Grotesk     | Satoshi   | JetBrains Mono    |
+| Light | `#F0F0EC`   | `#008246` 🌲         | Cabinet Grotesk     | Satoshi   | JetBrains Mono    |
+
+Dark mode is the default — honoring the bash-CLI heritage of the original VideoSensi.
+Full token reference: [`THEME.md`](./THEME.md). Brand guide: [`BRANDING.md`](./BRANDING.md).
+
+---
+
 ## 🏗️ Tech Stack
 
 | Layer        | Choice                                         | Why                                  |
@@ -55,6 +73,7 @@ See [`FEATURES.md`](./FEATURES.md) for the full feature matrix.
 | File picking | **`file_picker`**                              | Native pickers per platform          |
 | State mgmt   | **Riverpod 2**                                 | Testable, scalable, modern           |
 | Storage      | **Hive / Drift**                               | Fast local history & settings        |
+| Theme        | Custom tokens from `THEME.md`                  | Matches jubairsensei.com exactly     |
 | CI/CD        | **GitHub Actions**                             | Auto-build APK / .deb / .exe / AppImage |
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for module design.
@@ -87,8 +106,9 @@ See [`ROADMAP.md`](./ROADMAP.md). Short version:
 
 ## 📚 Documentation
 
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Module design & data flow
+- [`THEME.md`](./THEME.md) — 🎨 Design tokens (colors, fonts, spacing) extracted from jubairsensei.com
 - [`BRANDING.md`](./BRANDING.md) — Name, logo, color system, voice
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Module design & data flow
 - [`FEATURES.md`](./FEATURES.md) — Full feature matrix with priorities
 - [`COMPRESSION.md`](./COMPRESSION.md) — Codec strategy, CRF logic, presets
 - [`ROADMAP.md`](./ROADMAP.md) — Phased delivery plan
@@ -99,10 +119,12 @@ See [`ROADMAP.md`](./ROADMAP.md). Short version:
 
 ## 👤 Author
 
-**Jubair Sensei**
+**Jubair Sensei** — *Hack, learn, dominate.*
+- 🌐 [jubairsensei.com](https://jubairsensei.com) — Bangla tech community
 - 📧 jubairsensei@gmail.com
 - 🐙 [github.com/JubairSenseiDev](https://github.com/JubairSenseiDev)
-- 💬 Telegram: [@JubairFF](https://t.me/JubairFF)
+- 💬 Telegram: [@JubairSensei](https://t.me/JubairSensei)
+- ▶️ YouTube: [@JubairSensei](https://youtube.com/@JubairSensei)
 
 ## 📜 License
 

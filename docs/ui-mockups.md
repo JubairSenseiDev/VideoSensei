@@ -484,16 +484,41 @@ These are wireframe-level specs — final visual design happens in Phase 3.
 
 ## 13. Dark vs Light
 
-**Dark mode (default)**:
-- Background: `#0F0F14` (ink.900)
-- Cards: glassmorphism over `#1A1A22` (ink.800)
-- Text: `#FAFAF9` (cream.50)
-- Accent glow: `#06B6D4` (cyan.500)
+> 📌 **Full token reference: [`THEME.md`](../THEME.md)**
 
-**Light mode**:
-- Background: `#FAFAF9` (cream.50)
-- Cards: `#F5F5F4` (cream.100) with subtle indigo tint
-- Text: `#1E1B4B` (indigo.900)
-- Accent: `#4F46E5` (indigo.600) — cyan reads too harsh on white
+**Dark mode (DEFAULT)** — honors the bash-CLI heritage, terminal aesthetic:
+- Background: `#0A0A0B` (near-black, slightly cool)
+- Cards / elevated: `#111114`
+- Primary text: `#FFFFFF`
+- Secondary text: `#A1A1AA`
+- Muted text: `#52525B`
+- Accent: `#00FF88` 🟢 **NEON GREEN** — the signature color
+- Hairline borders: white at 8–12% opacity
+- Progress ring glow: `0 0 24px rgba(0,255,136,0.4)`
+- Glass surfaces: `backdrop-filter: blur(12px)` + white at 4% opacity
+
+**Light mode** — warm, paper-like, accessible:
+- Background: `#F0F0EC` (warm cream)
+- Cards / elevated: `#FAF9F5`
+- Primary text: `#1E1914` (warm near-black)
+- Secondary text: `#50483C`
+- Muted text: `#786E5F`
+- Accent: `#008246` 🌲 **FOREST GREEN**
+- Hairline borders: `#1E1914` at 10% opacity
+- Glass surfaces: `#1E1914` at 4% opacity, `blur(12px)`
 
 **Auto mode**: follows system setting (Android 10+, iOS 13+, Linux/Windows via Flutter platform channel).
+
+### Why dark-first?
+
+1. **Brand consistency** — jubairsensei.com is dark-first; VideoSensei inherits
+2. **Terminal heritage** — the original VideoSensi was a bash CLI; green-on-black honors that
+3. **Compression focus** — when you spend 5+ minutes watching a progress ring, dark mode is easier on the eyes
+4. **Saved bytes = green** — the accent color reinforces success semantically
+
+### Theme switch behavior
+
+- Settings → Theme: `[ Dark ▾ ]` (default), `Light`, `Auto`
+- Switch is instant — no app restart
+- Selection persists across sessions
+- `Auto` mode re-evaluates when system theme changes
