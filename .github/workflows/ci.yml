@@ -248,14 +248,30 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get install -y ffmpeg
 
-      - name: Run installer
-        run: bash install.sh
+      - name: Run installer (non-interactive)
+        # Use local installer.sh directly with --yes flag to test the
+        # non-interactive path. (curl|bash path is exercised separately below.)
+        run: bash installer/installer.sh --yes
 
       - name: Verify videosensei
         run: |
           which videosensei
           videosensei --version
           videosensei --help | head -10
+
+      - name: Cleanup before curl|bash test
+        run: |
+          sudo rm -f /usr/local/bin/videosensei
+          rm -rf ~/.videosensei
+
+      - name: Test curl|bash entry point (non-interactive)
+        # Simulate the user-facing one-liner but against local install.sh
+        # so we don't depend on a published release yet.
+        run: |
+          # install.sh detects non-TTY and passes --yes automatically
+          bash install.sh
+          which videosensei
+          videosensei --version
 
   # ---------------------------------------------------------------------------
   # Job 6: Release (only on tag)

@@ -24,11 +24,14 @@ fi
 
 # Use local installer.sh if available (faster + works offline), else download.
 if [ -f "$LOCAL_INSTALLER" ]; then
-  bash "$LOCAL_INSTALLER" "$@" </dev/tty
+  # Local installer — only redirect /dev/tty if we're interactive AND /dev/tty exists
+  if [ -t 0 ] && [ -e /dev/tty ]; then
+    bash "$LOCAL_INSTALLER" "$@" </dev/tty
+  else
+    bash "$LOCAL_INSTALLER" --yes "$@"
+  fi
 else
-  # Pipe installer to bash. Connect stdin to /dev/tty if available (interactive),
-  # otherwise (CI / piped) fall back to /dev/null so prompts auto-fail loudly
-  # rather than hang — and add --yes by default so the installer doesn't block.
+  # Download installer + run. Same TTY logic as above.
   if [ -t 0 ] && [ -e /dev/tty ]; then
     curl -fsSL "$INSTALLER_URL" | bash -s -- "$@" </dev/tty
   else
