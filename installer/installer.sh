@@ -8,6 +8,12 @@
 #   • Termux (Android)
 #   • Windows (Git Bash / MSYS2 / WSL)
 #
+# v1.0.2 fixes:
+#   - Detect broken Node.js/FFmpeg binaries (ABI mismatch), not just missing
+#   - Auto-run `pkg upgrade` on Termux when ABI mismatch detected
+#   - Force reinstall packages after upgrade
+#   - Clear manual-fix instructions if auto-fix fails
+#
 # v1.0.1 fixes:
 #   - Use printf instead of echo (truecolor codes now work in ALL shells)
 #   - Termux: handle mirror selection gracefully
@@ -31,7 +37,7 @@ set -u  # fail on undefined vars; do NOT use -e (we handle errors manually)
 # ============================================================================
 # CONFIG
 # ============================================================================
-INSTALLER_VERSION="1.0.1"
+INSTALLER_VERSION="1.0.2"
 REPO_RAW="https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main"
 CLI_URL="$REPO_RAW/cli/videosensei.js"
 SENSEI_DIR="$HOME/.videosensei"
@@ -113,39 +119,101 @@ show_logo() {
 # ============================================================================
 # DEPENDENCY CHECKS
 # ============================================================================
+# Check not just that the binary exists, but that it actually RUNS.
+# On Termux, partial upgrades can leave binaries that exist but fail to link.
 check_node() {
-  if command_exists node; then
-    local version major
-    version=$(node --version 2>/dev/null | sed 's/v//')
-    major=$(echo "$version" | cut -d. -f1)
-    if [ "${major:-0}" -ge 16 ] 2>/dev/null; then
-      p_ok "Node.js v${version} found"
-      return 0
-    else
-      p_warn "Node.js v${version} found (need >=16)"
-      return 1
-    fi
-  else
+  if ! command_exists node; then
     p_warn "Node.js not found"
+    return 1
+  fi
+  # Verify it actually runs (catches ABI mismatches like missing OSSL symbols)
+  local version
+  if ! version=$(node --version 2>/dev/null); then
+    p_warn "Node.js binary exists but fails to run (likely ABI mismatch)"
+    return 2  # code 2 = exists but broken
+  fi
+  version=$(echo "$version" | sed 's/v//')
+  local major
+  major=$(echo "$version" | cut -d. -f1)
+  if [ "${major:-0}" -ge 16 ] 2>/dev/null; then
+    p_ok "Node.js v${version} found and working"
+    return 0
+  else
+    p_warn "Node.js v${version} found (need >=16)"
     return 1
   fi
 }
 
 check_ffmpeg() {
-  if command_exists ffmpeg && command_exists ffprobe; then
-    local version
-    version=$(ffmpeg -version 2>/dev/null | head -1 | awk '{print $3}')
-    p_ok "FFmpeg ${version} found"
-    return 0
-  else
+  if ! command_exists ffmpeg; then
     p_warn "FFmpeg not found"
     return 1
   fi
+  # Verify it actually runs (catches libc++ ABI mismatches)
+  local version
+  if ! version=$(ffmpeg -version 2>&1 | head -1 | awk '{print $3}'); then
+    p_warn "FFmpeg binary exists but fails to run (likely ABI mismatch)"
+    return 2
+  fi
+  if ! command_exists ffprobe; then
+    p_warn "FFprobe not found (usually ships with FFmpeg)"
+    return 1
+  fi
+  # Verify ffprobe runs too
+  if ! ffprobe -version >/dev/null 2>&1; then
+    p_warn "FFprobe binary exists but fails to run"
+    return 2
+  fi
+  p_ok "FFmpeg ${version} found and working"
+  return 0
+}
+
+# Detect ABI mismatch errors from a command's stderr
+# Returns 0 if ABI issue detected, 1 otherwise
+detect_abi_mismatch() {
+  local stderr_output="$1"
+  # Common patterns:
+  #   "cannot locate symbol"          — Termux partial upgrade
+  #   "CANNOT LINK EXECUTABLE"        — Termux linker error
+  #   "symbol lookup error"           — glibc version mismatch
+  #   "undefined symbol"              — Linux ABI mismatch
+  if echo "$stderr_output" | grep -qiE "cannot locate symbol|CANNOT LINK EXECUTABLE|symbol lookup error|undefined symbol"; then
+    return 0
+  fi
+  return 1
 }
 
 # ============================================================================
 # TERMUX-SPECIFIC HELPERS
 # ============================================================================
+# On Termux, partial upgrades can leave binaries that exist but fail to link.
+# The universal fix is `pkg upgrade -y` which brings ALL packages into sync.
+# We auto-detect this situation and run pkg upgrade automatically.
+termux_fix_abi_mismatch() {
+  printf '\n'
+  p_warn "Detected Termux ABI mismatch (partial upgrade issue)."
+  p_info "Running ${C_ACCENT}pkg upgrade -y${C_RESET} to sync all packages..."
+  printf '\n'
+
+  # Run pkg upgrade — show output so user sees progress
+  if pkg upgrade -y 2>&1 | tail -20; then
+    p_ok "Package upgrade complete"
+    return 0
+  else
+    p_warn "pkg upgrade had errors. Trying pkg update + reinstall approach..."
+    pkg update -y >/dev/null 2>&1 || true
+    pkg upgrade -y 2>&1 | tail -10 || true
+    return 0  # return 0 anyway — user can re-run installer
+  fi
+}
+
+# Force reinstall a package (helps when ABI mismatch corrupts an install)
+termux_reinstall_pkg() {
+  local pkg="$1"
+  p_info "Force reinstalling ${pkg}..."
+  pkg install -y --reinstall "$pkg" 2>&1 | tail -5 || true
+}
+
 termux_setup_mirror() {
   # If no mirror is selected, try to set a working one automatically.
   # This is a known Termux pain point — we just pick a reliable mirror.
@@ -196,6 +264,21 @@ install_node() {
         printf '  %bpkg install nodejs%b\n' "$C_ACCENT" "$C_RESET"
         printf '  %b# Then re-run this installer%b\n' "$C_MUTED" "$C_RESET"
         return 1
+      fi
+      # Verify it actually runs (catches ABI mismatch)
+      if ! node --version >/dev/null 2>&1; then
+        p_warn "Node.js installed but won't run — likely ABI mismatch."
+        termux_fix_abi_mismatch
+        # Try force reinstall after upgrade
+        termux_reinstall_pkg nodejs
+        if ! node --version >/dev/null 2>&1; then
+          p_err "Node.js still won't run after upgrade + reinstall."
+          p_info "Final manual fix:"
+          printf '  %bpkg update && pkg upgrade -y%b\n' "$C_ACCENT" "$C_RESET"
+          printf '  %bpkg install --reinstall nodejs%b\n' "$C_ACCENT" "$C_RESET"
+          printf '  %b# Then re-run this installer%b\n' "$C_MUTED" "$C_RESET"
+          return 1
+        fi
       fi
       ;;
     linux)
@@ -254,6 +337,20 @@ install_ffmpeg() {
         p_info "Manual fix:"
         printf '  %bpkg install ffmpeg%b\n' "$C_ACCENT" "$C_RESET"
         return 1
+      fi
+      # Verify it actually runs (catches libc++ ABI mismatch)
+      if ! ffmpeg -version >/dev/null 2>&1; then
+        p_warn "FFmpeg installed but won't run — likely ABI mismatch."
+        termux_fix_abi_mismatch
+        termux_reinstall_pkg ffmpeg
+        if ! ffmpeg -version >/dev/null 2>&1; then
+          p_err "FFmpeg still won't run after upgrade + reinstall."
+          p_info "Final manual fix:"
+          printf '  %bpkg update && pkg upgrade -y%b\n' "$C_ACCENT" "$C_RESET"
+          printf '  %bpkg install --reinstall ffmpeg%b\n' "$C_ACCENT" "$C_RESET"
+          printf '  %b# Then re-run this installer%b\n' "$C_MUTED" "$C_RESET"
+          return 1
+        fi
       fi
       ;;
     linux)
@@ -458,28 +555,91 @@ main() {
   esac
 
   # Step 1: Node.js
-  if ! check_node; then
-    printf '  %bInstall Node.js now? [Y/n] %b' "$C_BOLD" "$C_RESET"
-    read -r reply
-    if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
-      if ! install_node; then
-        die "Node.js installation failed."
+  # check_node returns:
+  #   0 = OK
+  #   1 = missing or too old
+  #   2 = exists but BROKEN (ABI mismatch) — needs reinstall + maybe pkg upgrade
+  check_node
+  node_status=$?
+  if [ "$node_status" -ne 0 ]; then
+    if [ "$node_status" -eq 2 ]; then
+      # Broken binary — on Termux, this is almost always ABI mismatch
+      if [ "$PLATFORM" = "termux" ]; then
+        termux_fix_abi_mismatch
+        termux_reinstall_pkg nodejs
+        if check_node; then
+          p_ok "Node.js fixed after upgrade + reinstall"
+        else
+          p_err "Node.js still broken after fix attempt."
+          p_info "Final manual fix:"
+          printf '  %bpkg update && pkg upgrade -y%b\n' "$C_ACCENT" "$C_RESET"
+          printf '  %bpkg install --reinstall nodejs%b\n' "$C_ACCENT" "$C_RESET"
+          die "Please run the manual commands above, then re-run this installer."
+        fi
+      else
+        # On Linux/Mac/Windows: just reinstall
+        printf '  %bReinstall Node.js now? [Y/n] %b' "$C_BOLD" "$C_RESET"
+        read -r reply
+        if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
+          if ! install_node; then
+            die "Node.js installation failed."
+          fi
+        else
+          die "Node.js is broken. Please reinstall from https://nodejs.org/"
+        fi
       fi
     else
-      die "Node.js is required. Install manually from https://nodejs.org/"
+      # Missing or too old
+      printf '  %bInstall Node.js now? [Y/n] %b' "$C_BOLD" "$C_RESET"
+      read -r reply
+      if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
+        if ! install_node; then
+          die "Node.js installation failed."
+        fi
+      else
+        die "Node.js is required. Install manually from https://nodejs.org/"
+      fi
     fi
   fi
 
-  # Step 2: FFmpeg
-  if ! check_ffmpeg; then
-    printf '  %bInstall FFmpeg now? [Y/n] %b' "$C_BOLD" "$C_RESET"
-    read -r reply
-    if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
-      if ! install_ffmpeg; then
-        die "FFmpeg installation failed."
+  # Step 2: FFmpeg (same logic as Node.js)
+  check_ffmpeg
+  ffmpeg_status=$?
+  if [ "$ffmpeg_status" -ne 0 ]; then
+    if [ "$ffmpeg_status" -eq 2 ]; then
+      if [ "$PLATFORM" = "termux" ]; then
+        termux_fix_abi_mismatch
+        termux_reinstall_pkg ffmpeg
+        if check_ffmpeg; then
+          p_ok "FFmpeg fixed after upgrade + reinstall"
+        else
+          p_err "FFmpeg still broken after fix attempt."
+          p_info "Final manual fix:"
+          printf '  %bpkg update && pkg upgrade -y%b\n' "$C_ACCENT" "$C_RESET"
+          printf '  %bpkg install --reinstall ffmpeg%b\n' "$C_ACCENT" "$C_RESET"
+          die "Please run the manual commands above, then re-run this installer."
+        fi
+      else
+        printf '  %bReinstall FFmpeg now? [Y/n] %b' "$C_BOLD" "$C_RESET"
+        read -r reply
+        if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
+          if ! install_ffmpeg; then
+            die "FFmpeg installation failed."
+          fi
+        else
+          die "FFmpeg is broken. Please reinstall manually."
+        fi
       fi
     else
-      die "FFmpeg is required. Install manually."
+      printf '  %bInstall FFmpeg now? [Y/n] %b' "$C_BOLD" "$C_RESET"
+      read -r reply
+      if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
+        if ! install_ffmpeg; then
+          die "FFmpeg installation failed."
+        fi
+      else
+        die "FFmpeg is required. Install manually."
+      fi
     fi
   fi
 
