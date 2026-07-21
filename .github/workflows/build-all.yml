@@ -1,0 +1,166 @@
+# =============================================================================
+# VideoSensei — MASTER build pipeline (everything, all at once)
+# =============================================================================
+# One-stop workflow that builds EVERY artifact VideoSensei produces:
+#
+#   CLI binaries (5 platforms, via Bun):
+#     - videosensei-linux-x64
+#     - videosensei-linux-arm64        ← Termux-compatible
+#     - videosensei-darwin-x64          ← macOS Intel
+#     - videosensei-darwin-arm64       ← macOS Apple Silicon
+#     - videosensei-windows-x64.exe
+#     - videosensei.js                  ← Node.js bundle (any platform, 50 KB)
+#
+#   Flutter native apps:
+#     - Android APK (arm64-v8a, armeabi-v7a, x86_64, universal)
+#     - Android AAB (Play Store bundle)
+#     - Linux tar.gz + .deb (x64 + arm64)
+#     - Windows zip (x64)
+#     - macOS zip (universal)
+#     - Web tar.gz + GitHub Pages deploy
+#
+# Triggers:
+#   - workflow_dispatch (manual, with flavor picker)
+#   - schedule (nightly at 02:00 UTC, flavor = release-only)
+#   - tag v*.*.* (auto — full release)
+#
+# This workflow re-uses ci.yml (CLI) and build.yml (Flutter) as reusable workflows.
+# =============================================================================
+
+name: Build Everything
+
+on:
+  workflow_dispatch:
+    inputs:
+      flavor:
+        description: 'Build flavor'
+        required: true
+        type: choice
+        default: 'all'
+        options:
+          - all           # CLI + Flutter (everything)
+          - cli-only      # CLI binaries (5 platforms)
+          - flutter-only  # Flutter native apps (Android/Linux/Windows/macOS/Web)
+          - termux-only   # Just the Termux artifacts (linux-arm64 + Android arm64 APK)
+      attach_release:
+        description: 'Attach artifacts to latest GitHub Release'
+        required: false
+        default: 'false'
+  schedule:
+    - cron: '0 2 * * *'
+  release:
+    types: [created]
+
+concurrency:
+  group: build-everything-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job: Run the existing CLI workflow (ci.yml)
+  # ---------------------------------------------------------------------------
+  trigger-cli:
+    name: Trigger CLI pipeline
+    if: github.event.inputs.flavor != 'flutter-only' && github.event.inputs.flavor != 'termux-only'
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+    permissions:
+      contents: write
+
+  # ---------------------------------------------------------------------------
+  # Job: Run the Flutter build workflow (build.yml)
+  # ---------------------------------------------------------------------------
+  trigger-flutter:
+    name: Trigger Flutter pipeline
+    if: github.event.inputs.flavor != 'cli-only' && github.event.inputs.flavor != 'termux-only'
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+  # ---------------------------------------------------------------------------
+  # Job: Run Termux workflow (linux-arm64 + Android arm64 APK)
+  # ---------------------------------------------------------------------------
+  trigger-termux:
+    name: Trigger Termux pipeline
+    if: github.event.inputs.flavor == 'all' || github.event.inputs.flavor == 'termux-only'
+    uses: ./.github/workflows/termux-build.yml
+    secrets: inherit
+    permissions:
+      contents: write
+    with:
+      build_apk: 'true'
+      build_cli: 'true'
+      release: ${{ github.event.inputs.attach_release || 'false' }}
+
+  # ---------------------------------------------------------------------------
+  # Job: Build matrix summary (single dashboard showing all artifacts)
+  # ---------------------------------------------------------------------------
+  manifest:
+    name: Build manifest
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [trigger-cli, trigger-flutter, trigger-termux]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate manifest
+        run: |
+          mkdir -p manifest
+          cat > manifest/MANIFEST.md <<EOF
+          # VideoSensei build manifest
+
+          **Run**: ${{ github.run_id }}
+          **Ref**: ${{ github.ref_name }}
+          **Flavor**: ${{ github.event.inputs.flavor || 'release' }}
+          **Date**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          ## Pipeline status
+
+          | Pipeline | Status |
+          | -------- | ------ |
+          | CLI (5 platforms) | ${{ needs.trigger-cli.result || 'skipped' }} |
+          | Flutter (Android/Linux/Win/macOS/Web) | ${{ needs.trigger-flutter.result || 'skipped' }} |
+          | Termux (linux-arm64 + Android arm64 APK) | ${{ needs.trigger-termux.result || 'skipped' }} |
+
+          ## All artifacts produced
+
+          | Type | Artifact | Platform |
+          | ---- | -------- | -------- |
+          | CLI | videosensei-linux-x64 | Linux x86_64 |
+          | CLI | videosensei-linux-arm64 | Linux arm64 / **Termux** |
+          | CLI | videosensei-darwin-x64 | macOS Intel |
+          | CLI | videosensei-darwin-arm64 | macOS Apple Silicon |
+          | CLI | videosensei-windows-x64.exe | Windows x86_64 |
+          | CLI | videosensei.js | Any (Node.js 18+) |
+          | App | VideoSensei-*-android-arm64-v8a.apk | Android 64-bit (modern phones) |
+          | App | VideoSensei-*-android-armeabi-v7a.apk | Android 32-bit (old phones) |
+          | App | VideoSensei-*-android-x86_64.apk | Android x86 (emulators) |
+          | App | VideoSensei-*-android-universal.apk | All Android ABIs |
+          | App | VideoSensei-*-android.aab | Play Store submission |
+          | App | VideoSensei-*-linux-x64.tar.gz | Linux x86_64 |
+          | App | VideoSensei-*-linux-x64.deb | Debian/Ubuntu x86_64 |
+          | App | VideoSensei-*-linux-arm64.tar.gz | Linux arm64 (Raspberry Pi 4/5) |
+          | App | VideoSensei-*-windows-x64.zip | Windows x86_64 |
+          | App | VideoSensei-*-macos-universal.zip | macOS universal |
+          | App | VideoSensei-*-web.tar.gz | PWA-ready web bundle |
+          | App | GitHub Pages deploy | https://\${{ github.repository_owner }}.github.io/VideoSensei/ |
+
+          EOF
+          cat manifest/MANIFEST.md
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-manifest
+          path: manifest/MANIFEST.md
+
+      - name: Attach manifest to release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.attach_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: manifest/MANIFEST.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

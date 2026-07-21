@@ -117,13 +117,22 @@ videosensei --help                   # see all options
 
 📖 **Full CLI guide**: [`cli/README.md`](./cli/README.md)
 
-### Native apps (coming soon)
+### Native apps (CI builds everything from any tag `v*.*.*`)
 
-| Platform | Format                | Status |
-| -------- | --------------------- | ------ |
-| Android  | `.apk` (arm64-v8a)    | 🚧 Flutter build in progress |
-| Linux    | `.deb` + AppImage     | 🚧 Flutter build in progress |
-| Windows  | `.exe` (NSIS)         | 🚧 Flutter build in progress |
+| Platform | Format                          | Status |
+| -------- | ------------------------------- | ------ |
+| Android  | `.apk` (arm64, arm, x64) + AAB  | 🟢 Built via GitHub Actions |
+| Linux    | `.tar.gz` + `.deb` (x64, arm64) | 🟢 Built via GitHub Actions |
+| Windows  | `.zip` (x64)                    | 🟢 Built via GitHub Actions |
+| macOS    | `.zip` (universal)              | 🟢 Built via GitHub Actions |
+| Web      | PWA tar.gz + GitHub Pages       | 🟢 Built via GitHub Actions |
+| Termux   | linux-arm64 binary + arm64 APK  | 🟢 See [`TERMUX.md`](./TERMUX.md) |
+
+Trigger all-platform builds manually from the Actions tab → **"Build Everything"** →
+pick flavor (`all` / `cli-only` / `flutter-only` / `termux-only`) → Run workflow.
+Or push a tag: `git tag v0.3.0 && git push origin v0.3.0` to auto-build + release.
+
+See [`.github/workflows/`](./.github/workflows/) for the full pipeline.
 
 ---
 

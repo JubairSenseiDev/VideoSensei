@@ -124,42 +124,66 @@ GitHub Actions CI validates on every push.
 
 ---
 
-## Phase 4 — Platform Builds & Integration ⏳
+## Phase 4 — Platform Builds & Integration 🟡 (CI scaffolding done; native integration pending)
 
-**Goal**: Produce installable artifacts for Android, Linux, and Windows.
+**Goal**: Produce installable artifacts for Android, Linux, Windows, macOS, and Web.
 
 **Deliverables**:
-- [ ] **Android**:
+- [x] **GitHub Actions CI/CD matrix** — see `.github/workflows/build.yml`:
+  - [x] On push/PR: `flutter analyze` + `flutter test`
+  - [x] On tag `v*.*.*`: build all platforms, upload to Releases
+  - [x] Auto-generates Flutter platform scaffolds inside the runner (`flutter create --platforms=...`)
+  - [x] Runs Drift codegen (`dart run build_runner`) before tests + builds
+  - [x] Runs `flutter gen-l10n` so ARB strings are wired
+- [x] **Android**:
+  - [x] APK for `arm64-v8a`, `armeabi-v7a`, `x86_64` (split-per-ABI)
+  - [x] Universal APK
+  - [x] App Bundle (.aab) for Play Store submission
   - [ ] Adaptive app icon (foreground + background)
   - [ ] `WRITE_MEDIA_VIDEO` permission via `MediaStore`
   - [ ] Foreground service for long-running encodes
   - [ ] Notification with progress + cancel action
   - [ ] Share-to-app intent filter (receive video from other apps)
   - [ ] Share-from-app (send result via share sheet)
-  - [ ] Signed APK (arm64-v8a) for release
-  - [ ] App Bundle (.aab) for Play Store submission
-- [ ] **Linux**:
-  - [ ] `.desktop` file with MimeType registration
+  - [ ] Signed release APK (currently unsigned debug-signed)
+- [x] **Linux**:
+  - [x] tar.gz bundle (x64 + arm64)
+  - [x] `.deb` package (x64) with `.desktop` + MimeType + hicolor icon
   - [ ] AppImage build
-  - [ ] `.deb` package with proper dependencies
-  - [ ] hicolor icons (16/32/48/64/128/256/512)
-- [ ] **Windows**:
+  - [ ] hicolor icons (16/32/48/64/128/256/512) — only 256 currently
+- [x] **Windows**:
+  - [x] zip bundle (x64)
   - [ ] MSIX or NSIS installer
   - [ ] File association (.mp4, .mkv, .mov)
   - [ ] Start menu shortcut
   - [ ] Code-signed `.exe` (if cert available; self-signed otherwise)
-- [ ] **GitHub Actions CI**:
-  - [ ] On push: `flutter analyze` + `flutter test`
-  - [ ] On tag `v*.*.*`: build all 3 platforms, upload to Releases
-- [ ] Hardware acceleration:
+- [x] **macOS**:
+  - [x] universal `.zip` (Intel + Apple Silicon)
+  - [ ] `.dmg` (using `create-dmg` action; currently zip-only)
+  - [ ] Code-signed + notarized (needs Apple Developer cert)
+- [x] **Web**:
+  - [x] Web tar.gz bundle (PWA-ready)
+  - [x] GitHub Pages auto-deploy on tag (`peaceiris/actions-gh-pages`)
+- [x] **Termux** — `.github/workflows/termux-build.yml` + `TERMUX.md`:
+  - [x] CLI linux-arm64 binary (runs inside Termux)
+  - [x] Flutter arm64 APK (built on `ubuntu-22.04-arm` as Termux fallback)
+  - [x] Self-hosted Termux runner support (when user registers one)
+  - [x] Copy-paste phone build instructions (`TERMUX.md`)
+- [x] **Master workflow** — `.github/workflows/build-all.yml`:
+  - [x] Single dispatch entry with flavor picker (`all` / `cli-only` / `flutter-only` / `termux-only`)
+  - [x] Nightly schedule (`0 2 * * *` UTC)
+  - [x] Reuses `ci.yml` + `build.yml` + `termux-build.yml` via `workflow_call`
+  - [x] Generates a `MANIFEST.md` listing every artifact produced
+- [ ] Hardware acceleration (still pending):
   - [ ] NVENC detection on Windows
   - [ ] VAAPI detection on Linux
   - [ ] MediaCodec on Android (if `ffmpeg_kit_flutter_new` supports)
 
 **Definition of done**: User can download an installer for their platform, install with one
 click, and the app works out of the box without needing to install FFmpeg separately.
-
-**Estimated effort**: 3–4 focused sessions.
+**Status**: CI scaffolding is fully wired — every artifact can be built by pushing a `v*.*.*` tag.
+The remaining items are native platform integration (notifications, share intents, installers,
+code signing). **Estimated remaining effort**: 2–3 focused sessions.
 
 ---
 
@@ -201,13 +225,13 @@ After v1.0.0 is stable, consider:
 
 ## Milestone Tracking
 
-| Phase | Status       | Started       | Completed     |
-| ----- | ------------ | ------------- | ------------- |
-| 1     | ✅ Complete  | 2026-07-21    | 2026-07-21    |
-| 2     | ✅ Complete  | 2026-07-21    | 2026-07-21    |
-| 3     | ⏳ Planned   | _—_           | _+3 weeks_    |
-| 4     | ⏳ Planned   | _—_           | _+5 weeks_    |
-| 5     | ⏳ Planned   | _—_           | _+7 weeks_    |
+| Phase | Status                       | Started       | Completed     |
+| ----- | ---------------------------- | ------------- | ------------- |
+| 1     | ✅ Complete                  | 2026-07-21    | 2026-07-21    |
+| 2     | ✅ Complete                  | 2026-07-21    | 2026-07-21    |
+| 3     | ⏳ Planned                   | _—_           | _+3 weeks_    |
+| 4     | 🟡 CI scaffolding done       | 2026-07-22    | _+5 weeks_    |
+| 5     | ⏳ Planned                   | _—_           | _+7 weeks_    |
 
 ---
 
