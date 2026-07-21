@@ -90,11 +90,21 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for module design.
 curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
 ```
 
-The installer auto-detects your platform and downloads a **self-contained binary**
-(built with Bun compile). No Node.js, no Bun runtime needed at user's machine —
-just FFmpeg.
+The installer auto-detects your platform and picks the best install path:
 
-Pre-built binaries: `linux-x64`, `linux-arm64` (Termux), `darwin-x64`, `darwin-arm64`, `windows-x64`.
+| Platform | Install path |
+| -------- | ------------ |
+| Linux x64 / arm64 | Pre-built single binary (95 MB, no runtime needed) |
+| macOS Intel / Apple Silicon | Pre-built single binary (95 MB, no runtime needed) |
+| Windows x64 | Pre-built single binary `.exe` (95 MB, no runtime needed) |
+| **Termux (Android)** | **Bun runtime** (via [bd-loser/bun-termux](https://github.com/bd-loser/bun-termux)) + 50KB JS bundle |
+| Other platforms | Node.js 18+ + 50KB JS bundle (fallback) |
+
+Pre-built binaries: `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`, `windows-x64`.
+
+Termux uses Bun instead of pre-built binary because Android's SELinux + Bionic
+linker breaks Bun-compiled binaries. [bd-loser/bun-termux](https://github.com/bd-loser/bun-termux)
+patches all these issues — full FFI + TinyCC + SELinux compatibility on Android.
 
 Then (v1.2.0+ — auto-everything, zero prompts):
 ```bash

@@ -18,6 +18,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] — 2026-07-21
+
+### 📱 Termux (Android) — Bun runtime integration
+
+Integrates [bd-loser/bun-termux](https://github.com/bd-loser/bun-termux) — a community
+port of Bun 1.3.14 for Android with FFI/TinyCC/SELinux fixes — so VideoSensei runs
+natively on Termux using Bun's fast startup instead of Node.js.
+
+### Why this matters
+
+On Termux (Android), pre-built `videosensei-linux-arm64` binary from Bun compile
+**fails to run** due to:
+- Android SELinux restrictions (EACCES on /, /data)
+- Bionic linker64 PIE/ASLR issues
+- Heap tagging (scudo) crashes
+- Missing `/tmp` directory
+
+`bd-loser/bun-termux` patches all of these. By installing Bun on Termux and running
+the JS bundle via `bun run`, we get:
+- ✅ Full Android compatibility (no SELinux crashes)
+- ✅ ~4x faster startup than Node.js
+- ✅ Same auto-mode UX as everywhere else
+- ✅ FFI + TinyCC runtime compilation works (future opentui support)
+
+### Changed — Installer (v1.2.0 → v1.2.1)
+- New Termux install path (PREFERRED on Android):
+  1. Detect Termux platform
+  2. Check if Bun already installed → if not, install from bd-loser/bun-termux
+  3. Download Node.js bundle (~50KB) from GitHub
+  4. Create launcher: `exec bun ~/.videosensei/videosensei.js "$@"`
+  5. Verify with `videosensei --version`
+- Falls back to Linux-arm64 pre-built binary if Bun install fails
+- Falls back to Node.js bundle if binary also fails
+- Falls back to installing Node.js if neither Bun nor binary works
+- Same Termux ABI mismatch recovery (auto `pkg upgrade`)
+
+### Added — New functions in installer
+- `check_bun()` — verify Bun runtime exists and runs
+- `install_bun_termux()` — download + install `bun_1.3.14-patched_aarch64.deb` from
+  `bd-loser/bun-termux` releases
+- `install_with_bun_runtime()` — install launcher that runs JS bundle via Bun
+- Termux-specific binary run-failure message: "This is common on Termux
+  (Android SELinux/Bionic restrictions)"
+
+### Termux install (one-liner)
+```bash
+curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
+```
+
+The installer auto-detects Termux, installs Bun (via bd-loser/bun-termux), and
+sets up the launcher. No manual Bun install required.
+
+### Acknowledgments
+- [bd-loser/bun-termux](https://github.com/bd-loser/bun-termux) — Bun port for Android
+  with FFI/TinyCC/SELinux/heap-tagging fixes. MIT licensed.
+
+---
+
 ## [1.2.0] — 2026-07-21
 
 ### 🚀 Modern distribution — single-binary via Bun compile
