@@ -68,8 +68,12 @@ ffmpeg -version | head -1
 
 ```bash
 cd ~
+# main branch = CLI + installer (default — what most users need)
 git clone https://github.com/JubairSenseiDev/VideoSensei.git
 cd VideoSensei
+
+# If you also want to build the Flutter APK, switch to the flutter-app branch:
+# git checkout flutter-app
 ```
 
 ---
@@ -102,8 +106,13 @@ videosensei /sdcard/Download/big-video.mp4 -p sensei -o /sdcard/Download/compres
 
 This builds the **native Android app** — installable like any other APK.
 
+> The Flutter app source lives in the `flutter-app` branch (not on `main`).
+> Switch to it first: `git checkout flutter-app`
+
 ```bash
-cd ~/VideoSensei/videosensei
+cd ~/VideoSensei
+git checkout flutter-app
+cd videosensei
 
 # Generate platform scaffolds (one-time, since the repo doesn't ship them)
 flutter create --platforms=android --project-name videosensei .

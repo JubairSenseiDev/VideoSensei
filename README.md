@@ -1,171 +1,118 @@
 # 🥋 VideoSensei
 
+```
+██╗   ██╗███████╗███████╗██████╗ ███████╗██████╗  ██████╗ ███╗   ███╗██████╗ ███████╗██████╗
+██║   ██║██╔════╝██╔════╝██╔══██╗██╔════╝██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗
+██║   ██║█████╗  █████╗  ██████╔╝█████╗  ██████╔╝██║   ██║██╔████╔██║██║  ██║█████╗  ██████╔╝
+╚██╗ ██╔╝██╔══╝  ██╔══╝  ██╔══██╗██╔══╝  ██╔══██╗██║   ██║██║╚██╔╝██║██║  ██║██╔══╝  ██╔══██╗
+ ╚████╔╝ ███████╗███████╗██║  ██║███████╗██║  ██║╚██████╔╝██║ ╚═╝ ██║██████╔╝███████╗██║  ██║
+  ╚═══╝  ╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
+                              Master your video. Sensei-grade clarity.
+```
+
 > **Master your video. Sensei-grade clarity.**
 > *Hack the size. Keep the clarity.*
-
-A modern, cross-platform **video compression suite** built for 2026.
-Shrink file sizes dramatically — keep the picture crystal clear.
-
-Native apps for **Android**, **Linux**, and **Windows** from a single codebase.
-No CLI gymnastics. No terminal fear. Just open, pick a file, and let the Sensei work.
-
-> 🟢 Part of the **[Jubair Sensei](https://jubairsensei.com)** brand — *Hack, learn, dominate.*
-
----
-
-## 🎯 Why VideoSensei?
-
-The original VideoSensi (2019–2024) was a Termux-only bash tool — powerful but locked behind a terminal.
-VideoSensei is a full rebuild for the modern era:
-
-| Old (VideoSensi)                    | New (VideoSensei)                              |
-| ----------------------------------- | ---------------------------------------------- |
-| Bash CLI, Termux-only               | Native GUI on Android / Linux / Windows        |
-| System FFmpeg required              | FFmpeg bundled — zero setup                    |
-| `/sdcard` hardcoded paths           | Native file picker — pick from anywhere        |
-| ASCII-art menus                     | Material 3 / glassmorphism UI, 60fps           |
-| Single codec (H.264/H.265)          | H.264 / H.265 / **AV1** + smart auto-mode      |
-| Misspelled brand "Sensi"            | Properly branded **Sensei** 🥋                  |
-| Manual CRF guesswork                | Predictive sizing + per-title CRF analysis     |
-
----
-
-## ✨ Core Features
-
-- 🗂️ **Native file picker** — pick videos straight from your file manager
-- 🪶 **Smart compression** — auto-detects best codec & CRF for each video
-- 🎚️ **5 quality presets** — Lite / Balanced / Crystal / Sensei / Custom
-- 📊 **Predictive sizing** — see estimated output size *before* you encode
-- 🔄 **Batch processing** — queue dozens of files, walk away
-- 🎬 **Codec chooser** — H.264 (compat) · H.265 (balanced) · AV1 (future-proof)
-- ⚡ **Hardware acceleration** — NVENC / VAAPI / VideoToolbox / MediaCodec
-- 🆚 **Before/after preview** — scrub both clips side by side
-- 📝 **History log** — every operation tracked, undoable, exportable
-- 🌗 **Adaptive theme** — Material 3, dynamic color, dark mode by default
-- 📱 **Mobile-first UX** — designed for touch, scaled up for desktop
-
-See [`FEATURES.md`](./FEATURES.md) for the full feature matrix.
-
----
-
-## 🎨 Theme
-
-The visual identity is inherited from [jubairsensei.com](https://jubairsensei.com) —
-a **terminal-inspired, dark-first** aesthetic with **neon green** as the signature accent.
-
-| Mode  | Background  | Accent (signature)   | Headlines           | Body      | Numbers           |
-| ----- | ----------- | -------------------- | ------------------- | --------- | ----------------- |
-| Dark  | `#0A0A0B`   | `#00FF88` 🟢         | Cabinet Grotesk     | Satoshi   | JetBrains Mono    |
-| Light | `#F0F0EC`   | `#008246` 🌲         | Cabinet Grotesk     | Satoshi   | JetBrains Mono    |
-
-Dark mode is the default — honoring the bash-CLI heritage of the original VideoSensi.
-Full token reference: [`THEME.md`](./THEME.md). Brand guide: [`BRANDING.md`](./BRANDING.md).
-
----
-
-## 🏗️ Tech Stack
-
-| Layer        | Choice                                         | Why                                  |
-| ------------ | ---------------------------------------------- | ------------------------------------ |
-| UI framework | **Flutter 3.x** (Dart)                         | Single codebase, all 3 platforms     |
-| Video engine | **FFmpeg** (bundled via `ffmpeg_kit_flutter`)  | Zero setup, full codec support       |
-| Playback     | **`media_kit`** (libmpv)                       | Smooth preview, all formats          |
-| File picking | **`file_picker`**                              | Native pickers per platform          |
-| State mgmt   | **Riverpod 2**                                 | Testable, scalable, modern           |
-| Storage      | **Hive / Drift**                               | Fast local history & settings        |
-| Theme        | Custom tokens from `THEME.md`                  | Matches jubairsensei.com exactly     |
-| CI/CD        | **GitHub Actions**                             | Auto-build APK / .deb / .exe / AppImage |
-
-See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for module design.
 
 ---
 
 ## 📦 Install
 
-### CLI (available now — single binary, no runtime needed)
+**Termux (Android — primary target)**
 
-**One-line install** (Linux / macOS / Termux / Git Bash):
+```bash
+pkg update -y && pkg install -y curl ffmpeg
+curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
+```
+
+That's it. Run `videosensei` and you're compressing.
+
+**Linux / macOS / Windows / Git Bash**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
 ```
 
-The installer auto-detects your platform and picks the best install path:
+The installer auto-detects your platform and picks the right binary — no Node.js, no Bun runtime needed on your machine (except on Termux, where Bun is used for full Android compatibility via [bd-loser/bun-termux](https://github.com/bd-loser/bun-termux)).
 
-| Platform | Install path |
-| -------- | ------------ |
-| Linux x64 / arm64 | Pre-built single binary (95 MB, no runtime needed) |
-| macOS Intel / Apple Silicon | Pre-built single binary (95 MB, no runtime needed) |
-| Windows x64 | Pre-built single binary `.exe` (95 MB, no runtime needed) |
-| **Termux (Android)** | **Bun runtime** (via [bd-loser/bun-termux](https://github.com/bd-loser/bun-termux)) + 50KB JS bundle |
-| Other platforms | Node.js 18+ + 50KB JS bundle (fallback) |
+---
 
-Pre-built binaries: `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`, `windows-x64`.
+## 🚀 Usage
 
-Termux uses Bun instead of pre-built binary because Android's SELinux + Bionic
-linker breaks Bun-compiled binaries. [bd-loser/bun-termux](https://github.com/bd-loser/bun-termux)
-patches all these issues — full FFI + TinyCC + SELinux compatibility on Android.
-
-Then (v1.2.0+ — auto-everything, zero prompts):
 ```bash
-videosensei                          # picker + smart + compress (auto)
+videosensei                          # picker + smart + compress (zero prompts)
 videosensei video.mp4                # smart preset, auto-compress
 videosensei video.mp4 -p sensei      # AV1 master
-videosensei -i                       # interactive menu (old behavior)
+videosensei -i                       # interactive menu
 videosensei --help                   # see all options
 ```
 
-📖 **Full CLI guide**: [`cli/README.md`](./cli/README.md)
+### Presets
 
-### Native apps (CI builds everything from any tag `v*.*.*`)
-
-| Platform | Format                          | Status |
-| -------- | ------------------------------- | ------ |
-| Android  | `.apk` (arm64, arm, x64) + AAB  | 🟢 Built via GitHub Actions |
-| Linux    | `.tar.gz` + `.deb` (x64, arm64) | 🟢 Built via GitHub Actions |
-| Windows  | `.zip` (x64)                    | 🟢 Built via GitHub Actions |
-| macOS    | `.zip` (universal)              | 🟢 Built via GitHub Actions |
-| Web      | PWA tar.gz + GitHub Pages       | 🟢 Built via GitHub Actions |
-| Termux   | linux-arm64 binary + arm64 APK  | 🟢 See [`TERMUX.md`](./TERMUX.md) |
-
-Trigger all-platform builds manually from the Actions tab → **"Build Everything"** →
-pick flavor (`all` / `cli-only` / `flutter-only` / `termux-only`) → Run workflow.
-Or push a tag: `git tag v0.3.0 && git push origin v0.3.0` to auto-build + release.
-
-See [`.github/workflows/`](./.github/workflows/) for the full pipeline.
+| Preset     | Codec | Use case                       |
+| ---------- | ----- | ------------------------------ |
+| `lite`     | H.264 | Quick share, small files       |
+| `balanced` | H.265 | Best size-quality balance      |
+| `crystal`  | H.264 | Max H.264 quality              |
+| `sensei`   | AV1   | Smallest file, future-proof    |
+| `custom`   | any   | You pick codec + CRF           |
 
 ---
 
-## 🧭 Roadmap
+## 🎨 Theme
 
-See [`ROADMAP.md`](./ROADMAP.md). Short version:
+| Token     | Dark mode | Light mode |
+| --------- | --------- | ---------- |
+| Accent    | `#00FF88` | `#008246`  |
+| Background| `#0A0A0B` | `#F0F0EC`  |
+| Body      | Satoshi   | Satoshi    |
+| Headlines | Cabinet Grotesk | Cabinet Grotesk |
 
-- **Phase 1** ✅ Foundation — repo, branding, architecture, planning docs
-- **Phase 2** 🚧 Core engine — Flutter project + compression pipeline
-- **Phase 3** ⏳ Modern UI — Material 3 screens, animations, theming
-- **Phase 4** ⏳ Platform builds — Android APK, Linux .deb, Windows .exe
-- **Phase 5** ⏳ Polish & release — icons, store listings, v1.0.0
+Full tokens in [`THEME.md`](./THEME.md). Brand voice in [`BRANDING.md`](./BRANDING.md).
 
 ---
 
-## 📚 Documentation
+## 📚 Docs
 
-- [`THEME.md`](./THEME.md) — 🎨 Design tokens (colors, fonts, spacing) extracted from jubairsensei.com
-- [`BRANDING.md`](./BRANDING.md) — Name, logo, color system, voice
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Module design & data flow
-- [`FEATURES.md`](./FEATURES.md) — Full feature matrix with priorities
-- [`COMPRESSION.md`](./COMPRESSION.md) — Codec strategy, CRF logic, presets
-- [`ROADMAP.md`](./ROADMAP.md) — Phased delivery plan
-- [`docs/ui-mockups.md`](./docs/ui-mockups.md) — Screen layouts & flows
-- [`docs/codec-strategy.md`](./docs/codec-strategy.md) — Codec decision tree
+| File | Purpose |
+| ---- | ------- |
+| [`TERMUX.md`](./TERMUX.md) | 📱 Build VideoSensei on your phone with Termux |
+| [`cli/README.md`](./cli/README.md) | Full CLI reference + flags |
+| [`COMPRESSION.md`](./COMPRESSION.md) | Codec strategy + CRF logic |
+| [`ROADMAP.md`](./ROADMAP.md) | What's done, what's next |
+| [`BRANDING.md`](./BRANDING.md) | Name, logo, voice |
+| [`THEME.md`](./THEME.md) | Design tokens |
+
+---
+
+## 🛣️ Roadmap
+
+- ✅ **v1.0** — Original Bash CLI (Termux-only, 2019–2024)
+- ✅ **v1.2** — TypeScript rewrite + auto-everything + Bun single binaries
+- ✅ **v1.2.1** — Termux support via bd-loser/bun-termux
+- 🚧 **v2.0** — Flutter GUI app (in `flutter-app` branch — see below)
+
+---
+
+## 🌿 Branches
+
+| Branch | Contents |
+| ------ | -------- |
+| `main` | **CLI + installer** — what most users need. Stable. |
+| `flutter-app` | Flutter GUI app source + multi-platform CI (Android/Linux/Windows/macOS/Web). Work in progress. |
+
+To try the GUI build:
+```bash
+git clone -b flutter-app https://github.com/JubairSenseiDev/VideoSensei.git
+cd VideoSensei
+open TERMUX.md
+```
 
 ---
 
 ## 👤 Author
 
 **Jubair Sensei** — *Hack, learn, dominate.*
-- 🌐 [jubairsensei.com](https://jubairsensei.com) — Bangla tech community
-- 📧 jubairsensei@gmail.com
+- 🌐 [jubairsensei.com](https://jubairsensei.com)
 - 🐙 [github.com/JubairSenseiDev](https://github.com/JubairSenseiDev)
 - 💬 Telegram: [@JubairSensei](https://t.me/JubairSensei)
 - ▶️ YouTube: [@JubairSensei](https://youtube.com/@JubairSensei)
@@ -174,7 +121,6 @@ See [`ROADMAP.md`](./ROADMAP.md). Short version:
 
 MIT — see [`LICENSE`](./LICENSE).
 
-## 🙏 Acknowledgements
+---
 
-Built on the shoulders of giants: **FFmpeg**, **Flutter**, **Dart**, **libmpv**.
-Original concept (VideoSensi v3.3.1, 2019–2024) by Jubair bro.
+*Hack the size. Keep the clarity.* 🥋
