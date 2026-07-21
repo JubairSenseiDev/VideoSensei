@@ -443,6 +443,7 @@ function printHelp() {
   console.log('');
   console.log(`${THEME.bold}OPTIONS${THEME.reset}`);
   console.log(`  ${THEME.accent}-p, --preset${THEME.reset} <name>     Preset: lite|balanced|crystal|sensei|custom`);
+  console.log(`  ${THEME.accent}-P, --pick${THEME.reset}                 Open file picker to select video`);
   console.log(`  ${THEME.accent}-o, --output${THEME.reset} <dir>       Output directory (default: same as input)`);
   console.log(`  ${THEME.accent}-y, --yes${THEME.reset}                Skip confirmation prompts`);
   console.log(`  ${THEME.accent}--codec${THEME.reset} <name>            Custom: h264|h265|av1 (with -p custom)`);
@@ -453,6 +454,14 @@ function printHelp() {
   console.log(`  ${THEME.accent}--clear-history${THEME.reset}          Clear all history`);
   console.log(`  ${THEME.accent}-h, --help${THEME.reset}               Show this help`);
   console.log(`  ${THEME.accent}-v, --version${THEME.reset}            Show version`);
+  console.log('');
+  console.log(`${THEME.bold}FILE PICKERS${THEME.reset} (auto-detected, in order)`);
+  console.log(`  ${THEME.muted}Termux${THEME.reset}: termux-file-picker (pkg install termux-api)`);
+  console.log(`  ${THEME.muted}macOS${THEME.reset}:  osascript (built-in)`);
+  console.log(`  ${THEME.muted}Linux${THEME.reset}:  zenity (GTK) or kdialog (KDE)`);
+  console.log(`  ${THEME.muted}Win${THEME.reset}:    PowerShell (.NET WinForms)`);
+  console.log(`  ${THEME.muted}Any${THEME.reset}:    fzf (terminal fuzzy finder)`);
+  console.log(`  ${THEME.muted}Fallback${THEME.reset}: built-in arrow-key browser (no install needed)`);
   console.log('');
   console.log(`${THEME.bold}EXAMPLES${THEME.reset}`);
   console.log(`  ${THEME.muted}# Quick compress a video with Balanced preset${THEME.reset}`);
@@ -785,65 +794,167 @@ function printHistory() {
 // ============================================================================
 
 async function interactiveMode() {
+  // Require filepicker module
+  let picker;
+  try {
+    picker = require('./filepicker');
+  } catch (e) {
+    // picker not available — fall back to manual input
+  }
+
   clear();
   printLogo();
 
-  // Welcome
+  // Welcome screen — old VideoSensi style friendly menu
   console.log(`  ${THEME.muted}Welcome, Sensei. 🥋${THEME.reset}`);
-  console.log(`  ${THEME.muted}Pick a video to begin.${THEME.reset}`);
+  console.log(`  ${THEME.muted}Master your video. Sensei-grade clarity.${THEME.reset}`);
   console.log('');
 
-  // Get file path
-  let filePath = process.argv[2];
-  if (!filePath) {
-    filePath = await prompt(`  ${THEME.bold}Video path:${THEME.reset} `);
-  }
-  if (!filePath) {
-    console.log(`  ${THEME.warn('No file selected. Bye!')}${THEME.reset}`);
+  // Main menu — pick what to do
+  console.log(`  ${THEME.bold}WHAT WOULD YOU LIKE TO DO?${THEME.reset}`);
+  console.log('');
+  console.log(`  ${THEME.accent}1.${THEME.reset} ${THEME.ink}🎬 Pick a video and compress${THEME.reset}  ${THEME.muted}(file picker)${THEME.reset}`);
+  console.log(`  ${THEME.accent}2.${THEME.reset} ${THEME.ink}📂 Type path manually${THEME.reset}         ${THEME.muted}(paste path)${THEME.reset}`);
+  console.log(`  ${THEME.accent}3.${THEME.reset} ${THEME.ink}📦 Batch compress${THEME.reset}               ${THEME.muted}(multiple files)${THEME.reset}`);
+  console.log(`  ${THEME.accent}4.${THEME.reset} ${THEME.ink}📜 View history${THEME.reset}                  ${THEME.muted}(past compressions)${THEME.reset}`);
+  console.log(`  ${THEME.accent}5.${THEME.reset} ${THEME.ink}❓ Help${THEME.reset}                            ${THEME.muted}(show all options)${THEME.reset}`);
+  console.log(`  ${THEME.accent}q.${THEME.reset} ${THEME.ink}Quit${THEME.reset}`);
+  console.log('');
+
+  const mainChoice = await prompt(`  ${THEME.bold}Your choice${THEME.reset} ${THEME.muted}[1]${THEME.reset}: `);
+
+  // Handle menu choices
+  if (mainChoice === 'q' || mainChoice === 'Q') {
+    console.log(`  ${THEME.muted}Bye! Hack the size. Keep the clarity. 🥋${THEME.reset}`);
     process.exit(0);
   }
-  filePath = filePath.replace(/^['"]|['"]$/g, '').replace(/^~(?=\/|$)/, HOME);
-  if (!fs.existsSync(filePath)) {
-    console.log(`  ${THEME.err('✗')}  File not found: ${filePath}${THEME.reset}`);
-    process.exit(1);
+
+  if (mainChoice === '4') {
+    printHistory();
+    process.exit(0);
   }
 
-  // Probe
-  let meta;
-  try {
-    console.log(`  ${THEME.muted}Probing video...${THEME.reset}`);
-    meta = await probeVideo(filePath);
-  } catch (e) {
-    console.log(`  ${THEME.err('✗')}  ${e.message}${THEME.reset}`);
-    process.exit(1);
+  if (mainChoice === '5') {
+    printHelp();
+    process.exit(0);
   }
 
-  console.log('');
-  console.log(`  ${THEME.bold}Source:${THEME.reset} ${path.basename(filePath)}`);
-  if (meta.video) {
-    console.log(`  ${THEME.muted}         ${meta.video.width}x${meta.video.height} @ ${meta.video.fps.toFixed(1)}fps · ${meta.video.codec.toUpperCase()} · ${formatDuration(meta.duration)} · ${formatBytes(meta.size)}${THEME.reset}`);
+  let filePaths = [];
+
+  if (mainChoice === '3') {
+    // Batch mode — use file picker with multi-select
+    if (picker && picker.isPickerAvailable()) {
+      console.log('');
+      console.log(`  ${THEME.muted}Opening file picker (multi-select)...${THEME.reset}`);
+      console.log(`  ${THEME.muted}Select multiple videos, then press ${THEME.accent}q${THEME.reset}${THEME.muted} to finish.${THEME.reset}`);
+      const selected = await picker.pickFile({ multiple: true });
+      if (!selected || selected.length === 0) {
+        console.log(`  ${THEME.warn('No files selected. Bye!')}${THEME.reset}`);
+        process.exit(0);
+      }
+      filePaths = selected;
+    } else {
+      console.log(`  ${THEME.warn('File picker not available. Type paths separated by spaces.')}${THEME.reset}`);
+      const input = await prompt(`  ${THEME.bold}Video paths:${THEME.reset} `);
+      filePaths = input.split(/\s+/).filter(Boolean);
+    }
+  } else if (mainChoice === '2') {
+    // Manual path input
+    const input = await prompt(`  ${THEME.bold}Video path:${THEME.reset} `);
+    if (!input) {
+      console.log(`  ${THEME.warn('No file selected. Bye!')}${THEME.reset}`);
+      process.exit(0);
+    }
+    filePaths = [input];
+  } else {
+    // Default (1 or empty) — use file picker
+    if (picker && picker.isPickerAvailable()) {
+      console.log('');
+      console.log(`  ${THEME.muted}Opening file picker...${THEME.reset}`);
+      const selected = await picker.pickFile({ multiple: false });
+      if (!selected || selected.length === 0) {
+        console.log(`  ${THEME.warn('No file selected. Bye!')}${THEME.reset}`);
+        process.exit(0);
+      }
+      filePaths = selected;
+    } else {
+      // Fallback to manual input
+      const input = await prompt(`  ${THEME.bold}Video path:${THEME.reset} `);
+      if (!input) {
+        console.log(`  ${THEME.warn('No file selected. Bye!')}${THEME.reset}`);
+        process.exit(0);
+      }
+      filePaths = [input];
+    }
   }
-  console.log('');
 
-  // Smart recommendation
-  const recommended = recommendPreset(meta);
-  if (recommended === null) {
-    console.log(`  ${THEME.warn('⚠')}  Sensei says: source is already small or in AV1. Re-compression not recommended.${THEME.reset}`);
-    console.log(`     ${THEME.muted}Proceed anyway?${THEME.reset}`);
-  } else if (recommended) {
-    const p = PRESETS[recommended];
-    console.log(`  ${THEME.success('🥋')}  ${THEME.bold}Sensei recommends:${THEME.reset} ${p.color}${p.icon} ${p.name}${THEME.reset} ${THEME.muted}— ${p.useCase}${THEME.reset}`);
+  // Normalize paths
+  filePaths = filePaths.map((p) => p.replace(/^['"]|['"]$/g, '').replace(/^~(?=\/|$)/, HOME));
+
+  // Validate all files exist
+  for (const p of filePaths) {
+    if (!fs.existsSync(p)) {
+      console.log(`  ${THEME.err('✗')}  File not found: ${p}${THEME.reset}`);
+      process.exit(1);
+    }
   }
-  console.log('');
 
-  // Show presets
-  printPresets(meta);
+  // Single file = show details + pick preset
+  // Multi file = pick preset for all
+  let firstMeta = null;
+  if (filePaths.length === 1) {
+    clear();
+    printLogo(true);
 
-  // Get preset choice
-  const choice = await prompt(`  ${THEME.bold}Pick preset${THEME.reset} ${THEME.muted}[1-5, default: ${recommended === null ? 2 : (PRESET_KEYS.indexOf(recommended) + 1)}]${THEME.reset}: `);
+    // Probe
+    try {
+      console.log(`  ${THEME.muted}Probing video...${THEME.reset}`);
+      firstMeta = await probeVideo(filePaths[0]);
+    } catch (e) {
+      console.log(`  ${THEME.err('✗')}  ${e.message}${THEME.reset}`);
+      process.exit(1);
+    }
+
+    console.log('');
+    console.log(`  ${THEME.bold}Source:${THEME.reset} ${path.basename(filePaths[0])}`);
+    if (firstMeta.video) {
+      console.log(`  ${THEME.muted}         ${firstMeta.video.width}x${firstMeta.video.height} @ ${firstMeta.video.fps.toFixed(1)}fps · ${firstMeta.video.codec.toUpperCase()} · ${formatDuration(firstMeta.duration)} · ${formatBytes(firstMeta.size)}${THEME.reset}`);
+    }
+    console.log('');
+
+    // Smart recommendation
+    const recommended = recommendPreset(firstMeta);
+    if (recommended === null) {
+      console.log(`  ${THEME.warn('⚠')}  Sensei says: source is already small or in AV1. Re-compression not recommended.${THEME.reset}`);
+      console.log(`     ${THEME.muted}Proceed anyway?${THEME.reset}`);
+    } else if (recommended) {
+      const p = PRESETS[recommended];
+      console.log(`  ${THEME.success('🥋')}  ${THEME.bold}Sensei recommends:${THEME.reset} ${p.color}${p.icon} ${p.name}${THEME.reset} ${THEME.muted}— ${p.useCase}${THEME.reset}`);
+    }
+    console.log('');
+  } else {
+    clear();
+    printLogo(true);
+    console.log(`  ${THEME.bold}Batch mode:${THEME.reset} ${filePaths.length} files selected`);
+    console.log('');
+    filePaths.forEach((p, i) => {
+      console.log(`  ${THEME.muted}${i + 1}.${THEME.reset} ${path.basename(p)}`);
+    });
+    console.log('');
+    console.log(`  ${THEME.muted}Same preset will be applied to all files.${THEME.reset}`);
+    console.log('');
+  }
+
+  // Show presets + pick
+  printPresets(firstMeta);
+
+  const recommended = firstMeta ? recommendPreset(firstMeta) : 'balanced';
+  const defaultChoice = recommended === null ? 2 : (PRESET_KEYS.indexOf(recommended) + 1);
+
+  const choice = await prompt(`  ${THEME.bold}Pick preset${THEME.reset} ${THEME.muted}[1-5, default: ${defaultChoice}]${THEME.reset}: `);
   let presetIdx;
   if (!choice) {
-    presetIdx = recommended === null ? 1 : PRESET_KEYS.indexOf(recommended);
+    presetIdx = defaultChoice - 1;
   } else {
     presetIdx = parseInt(choice, 10) - 1;
     if (isNaN(presetIdx) || presetIdx < 0 || presetIdx >= PRESET_KEYS.length) {
@@ -868,12 +979,18 @@ async function interactiveMode() {
     customOpts.audioBitrate = `${audioChoice || '128'}k`;
   }
 
-  // Compress
-  try {
-    await compressVideo(filePath, presetKey, { ...customOpts, yes: false });
-  } catch (e) {
-    console.log(`  ${THEME.err('✗')}  ${e.message}${THEME.reset}`);
-    process.exit(1);
+  // Compress all files
+  console.log('');
+  for (let i = 0; i < filePaths.length; i++) {
+    if (filePaths.length > 1) {
+      console.log(`${THEME.bold}  [${i + 1}/${filePaths.length}]${THEME.reset} ${path.basename(filePaths[i])}`);
+    }
+    try {
+      await compressVideo(filePaths[i], presetKey, { ...customOpts, yes: filePaths.length > 1 });
+    } catch (e) {
+      console.log(`  ${THEME.err('✗')}  ${e.message}${THEME.reset}`);
+      log(`ERROR file=${filePaths[i]} error=${e.message}`);
+    }
   }
 
   // What's next
@@ -893,6 +1010,7 @@ function parseArgs(argv) {
     outputDir: null,
     yes: false,
     smart: false,
+    pick: false,
     showHistory: false,
     clearHistory: false,
     showHelp: false,
@@ -920,6 +1038,8 @@ function parseArgs(argv) {
       args.yes = true;
     } else if (arg === '--smart') {
       args.smart = true;
+    } else if (arg === '--pick' || arg === '-P') {
+      args.pick = true;
     } else if (arg === '-p' || arg === '--preset') {
       args.preset = next;
       i++;
@@ -989,6 +1109,29 @@ async function main() {
   if (!checkFFprobe()) {
     console.log(`${THEME.err('✗')}  FFprobe not found (usually ships with FFmpeg).${THEME.reset}`);
     process.exit(1);
+  }
+
+  // --pick flag = use file picker to select file(s)
+  if (args.pick && args.files.length === 0) {
+    let picker;
+    try { picker = require('./filepicker'); } catch {}
+    if (!picker || !picker.isPickerAvailable()) {
+      console.log(`${THEME.err('✗')}  File picker not available.${THEME.reset}`);
+      console.log(`   ${THEME.muted}Install one of:${THEME.reset}`);
+      console.log(`     ${THEME.accent}Termux${THEME.reset}: pkg install termux-api  ${THEME.muted}(then install Termux:API app)${THEME.reset}`);
+      console.log(`     ${THEME.accent}Linux${THEME.reset}: sudo apt install zenity  ${THEME.muted}(or: fzf)${THEME.reset}`);
+      console.log(`     ${THEME.accent}macOS${THEME.reset}: built-in (osascript)`);
+      console.log(`   ${THEME.muted}Or just run: videosensei  (interactive mode with built-in picker)${THEME.reset}`);
+      process.exit(1);
+    }
+    printLogo(true);
+    console.log(`  ${THEME.muted}Opening file picker...${THEME.reset}`);
+    const selected = await picker.pickFile({ multiple: false });
+    if (!selected || selected.length === 0) {
+      console.log(`  ${THEME.warn('No file selected. Bye!')}${THEME.reset}`);
+      process.exit(0);
+    }
+    args.files = selected;
   }
 
   // No files = interactive mode

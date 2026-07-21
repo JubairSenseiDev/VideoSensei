@@ -8,6 +8,11 @@
 #   • Termux (Android)
 #   • Windows (Git Bash / MSYS2 / WSL)
 #
+# v1.0.3 fixes:
+#   - Installer now downloads both videosensei.js and filepicker.js
+#   - Added install.sh entry point (curl | bash one-liner)
+#   - Friendly main menu (pick / type / batch / history / help)
+#
 # v1.0.2 fixes:
 #   - Detect broken Node.js/FFmpeg binaries (ABI mismatch), not just missing
 #   - Auto-run `pkg upgrade` on Termux when ABI mismatch detected
@@ -37,9 +42,10 @@ set -u  # fail on undefined vars; do NOT use -e (we handle errors manually)
 # ============================================================================
 # CONFIG
 # ============================================================================
-INSTALLER_VERSION="1.0.2"
+INSTALLER_VERSION="1.0.3"
 REPO_RAW="https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main"
 CLI_URL="$REPO_RAW/cli/videosensei.js"
+PICKER_URL="$REPO_RAW/cli/filepicker.js"
 SENSEI_DIR="$HOME/.videosensei"
 BIN_NAME="videosensei"
 
@@ -421,6 +427,7 @@ install_videosensei() {
 
   local target="$bin_dir/$BIN_NAME"
   local tmp_js="/tmp/videosensei_install_$$.js"
+  local tmp_picker="/tmp/videosensei_picker_$$.js"
   local tmp_launcher="/tmp/videosensei_launcher_$$"
 
   p_info "Downloading VideoSensei CLI..."
@@ -429,12 +436,25 @@ install_videosensei() {
     p_info "Check your internet connection and try again."
     return 1
   fi
-  p_ok "Downloaded"
+  p_ok "Downloaded CLI"
+
+  p_info "Downloading file picker module..."
+  if ! curl -fsSL "$PICKER_URL" -o "$tmp_picker"; then
+    p_warn "Failed to download file picker (will use manual input only)"
+  else
+    p_ok "Downloaded file picker"
+  fi
 
   p_info "Installing to ${C_MUTED}${target}${C_RESET}..."
   local js_target="$SENSEI_DIR/videosensei.js"
+  local picker_target="$SENSEI_DIR/filepicker.js"
   cp "$tmp_js" "$js_target"
   chmod +x "$js_target"
+  if [ -f "$tmp_picker" ]; then
+    cp "$tmp_picker" "$picker_target"
+    chmod +x "$picker_target"
+  fi
+  rm -f "$tmp_js" "$tmp_picker"
 
   # Write launcher script
   cat > "$tmp_launcher" << EOF

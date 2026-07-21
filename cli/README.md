@@ -14,13 +14,13 @@ The native Flutter GUI is coming later — but the CLI is fully functional today
 ## 🚀 Install (one command)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/installer/installer.sh)
+curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
 ```
 
 The installer will:
 1. Check for Node.js (install if missing)
 2. Check for FFmpeg (install if missing)
-3. Download `videosensei.js` to `~/.videosensei/`
+3. Download `videosensei.js` AND `filepicker.js` to `~/.videosensei/`
 4. Create a `videosensei` command in your PATH
 5. Verify the installation
 
@@ -31,6 +31,7 @@ git clone https://github.com/JubairSenseiDev/VideoSensei.git
 cd VideoSensei/cli
 chmod +x videosensei.js
 sudo ln -sf "$PWD/videosensei.js" /usr/local/bin/videosensei
+# (Also need filepicker.js in same directory as videosensei.js OR in ~/.videosensei/)
 # (Then make sure /usr/local/bin is in your PATH)
 ```
 
@@ -42,7 +43,46 @@ sudo ln -sf "$PWD/videosensei.js" /usr/local/bin/videosensei
 ```bash
 videosensei
 ```
-Then follow the prompts — pick a file, choose a preset, done.
+Shows a friendly menu:
+```
+  WHAT WOULD YOU LIKE TO DO?
+
+  1. 🎬 Pick a video and compress  (file picker)
+  2. 📂 Type path manually          (paste path)
+  3. 📦 Batch compress              (multiple files)
+  4. 📜 View history                (past compressions)
+  5. ❓ Help                         (show all options)
+  q. Quit
+```
+
+### File picker (NEW!)
+```bash
+videosensei --pick              # open picker, default preset (Balanced)
+videosensei --pick -p sensei    # open picker, AV1 master
+```
+
+**Auto-detected pickers (in order):**
+- **Termux**: `termux-file-picker` — install with `pkg install termux-api` (then install Termux:API app)
+- **macOS**: `osascript` (built-in)
+- **Linux**: `zenity` (GTK) or `kdialog` (KDE)
+- **Windows**: PowerShell (.NET WinForms)
+- **Any**: `fzf` (terminal fuzzy finder)
+- **Fallback**: built-in arrow-key browser (no install needed)
+
+The built-in fallback uses arrow keys to navigate directories:
+```
+  🥋 VideoSensei File Picker
+
+  📁 /home/sensei/Videos
+  Filter: mp4, mkv, mov, avi, webm  Hidden: off
+
+  ❯   ↩ ..
+        📁 old/
+        🎬 vacation.mp4
+        🎬 birthday.mp4
+
+  ↑↓ navigate  →/Enter open  ←/⌫ up dir  h hidden  q done
+```
 
 ### Quick compress (default: Balanced)
 ```bash
@@ -62,6 +102,8 @@ videosensei video.mp4 -p custom --codec h265 --crf 22  # 🎯 full control
 ```bash
 videosensei *.mp4 -p balanced
 videosensei file1.mp4 file2.mp4 file3.mp4 -p sensei
+# OR use the picker in multi-select mode:
+videosensei   # → option 3 (Batch compress)
 ```
 
 ### Smart mode (auto-recommend)

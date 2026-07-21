@@ -87,11 +87,13 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for module design.
 **One-line install** (Linux / macOS / Termux / Git Bash):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/installer/installer.sh)
+curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
 ```
 
 Then:
 ```bash
+videosensei                          # friendly menu (pick / type / batch / history)
+videosensei --pick                   # open file picker directly
 videosensei video.mp4                # compress with Balanced preset
 videosensei video.mp4 -p sensei      # AV1 master (smallest)
 videosensei --help                   # see all options

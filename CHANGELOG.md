@@ -18,6 +18,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.3] — 2026-07-21
+
+### Added
+- **File picker** — multiple picker backends auto-detected:
+  - Termux: `termux-file-picker` (after `pkg install termux-api`)
+  - macOS: built-in `osascript`
+  - Linux: `zenity` (GTK) or `kdialog` (KDE)
+  - Windows: PowerShell (.NET WinForms)
+  - Any: `fzf` (terminal fuzzy finder)
+  - Fallback: **pure-Node arrow-key browser** (no install needed)
+- **`--pick` / `-P` flag** — open file picker directly from command line
+- **Friendly main menu** (old VideoSensi style) when running `videosensei` without args:
+  1. 🎬 Pick a video and compress (file picker)
+  2. 📂 Type path manually (paste path)
+  3. 📦 Batch compress (multiple files)
+  4. 📜 View history (past compressions)
+  5. ❓ Help (show all options)
+  q. Quit
+- **`install.sh`** — minimal entry point for `curl | bash` one-liner
+- New module `cli/filepicker.js` (~500 lines, zero dependencies)
+
+### Changed
+- Installer now downloads BOTH `videosensei.js` AND `filepicker.js`
+- Interactive mode rewritten with friendly menu (was just "Video path:" prompt)
+- `--help` output includes FILE PICKERS section
+- Installer version bumped 1.0.2 → 1.0.3
+
+### One-liner install
+```bash
+curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
+```
+
+---
+
 ## [1.0.2] — 2026-07-21
 
 ### Fixed
