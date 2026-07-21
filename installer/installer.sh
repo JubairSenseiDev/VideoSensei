@@ -80,24 +80,17 @@ detect_platform() {
 PLATFORM=$(detect_platform)
 
 # ── Big banner ──────────────────────────────────────────────────────────────
-# Generated with pyfiglet (font: 'starwars'). All letters spelled correctly.
+# Generated with pyfiglet (font: 'doom'). VIDEOSENSEI spelled correctly on one line.
 show_banner() {
   printf '\n'
-  printf '  %b  ____    ____  __   _______   _______   ______        _______. _______ %b\n' "$C_ACCENT" "$C_RESET"
-  printf '  %b  \\   \\  /   / |  | |       \\ |   ____| /  __  \\      /       ||   ____|%b\n' "$C_ACCENT" "$C_RESET"
-  printf '  %b   \\   \\/   /  |  | |  .--.  ||  |__   |  |  |  |    |   (----`|  |__   %b\n' "$C_ACCENT" "$C_RESET"
-  printf '  %b    \\      /   |  | |  |  |  ||   __|  |  |  |  |     \\   \\    |   __|  %b\n' "$C_ACCENT" "$C_RESET"
-  printf '  %b     \\    /    |  | |  '\''--'\''  ||  |____ |  `--'\''  | .----)   |   |  |____ %b\n' "$C_ACCENT" "$C_RESET"
-  printf '  %b      \\__/     |__| |_______/ |_______| \\______/  |_______/    |_______|%b\n' "$C_ACCENT" "$C_RESET"
-  printf '  %b                                                                          %b\n' "$C_ACCENT" "$C_RESET"
-  printf '  %b  .__   __.      _______. _______  __  %b                                              \n' "$C_ACCENT" "$C_RESET"
-  printf '  %b  |  \\ |  |     /       ||   ____||  | %b                                              \n' "$C_ACCENT" "$C_RESET"
-  printf '  %b  |   \\|  |    |   (----`|  |__   |  | %b                                              \n' "$C_ACCENT" "$C_RESET"
-  printf '  %b  |  . `  |     \\   \\    |   __|  |  | %b                                              \n' "$C_ACCENT" "$C_RESET"
-  printf '  %b  |  |\\   | .----)   |   |  |____ |  | %b                                              \n' "$C_ACCENT" "$C_RESET"
-  printf '  %b  |__| \\__| |_______/    |_______||__| %b                                             \n' "$C_ACCENT" "$C_RESET"
-  printf '  %b                                         %b                                            \n' "$C_ACCENT" "$C_RESET"
-  printf '  %b          Master your video. Sensei-grade clarity.%b\n' "$C_MUTED" "$C_RESET"
+  printf '  %b _   _ ___________ _____ _____ _____ _____ _   _  _____ _____ _____ %b\n' "$C_ACCENT" "$C_RESET"
+  printf '  %b| | | |_   _|  _  \\  ___|  _  /  ___|  ___| \\ | |/  ___|  ___|_   _|%b\n' "$C_ACCENT" "$C_RESET"
+  printf '  %b| | | | | | | | | | |__ | | | \\ `--.| |__ |  \\| |\\ `--.| |__   | |  %b\n' "$C_ACCENT" "$C_RESET"
+  printf '  %b| | | | | | | | | |  __|| | | |`--. \\  __|| . ` | `--. \\  __|  | |  %b\n' "$C_ACCENT" "$C_RESET"
+  printf '  %b\\ \\_/ /_| |_| |/ /| |___\\ \\_/ /\\__/ / |___| |\\  |/\\__/ / |___ _| |_ %b\n' "$C_ACCENT" "$C_RESET"
+  printf '  %b \\___/ \\___/|___/ \\____/ \\___/\\____/\\____/\\_| \\_/\\____/\\____/ \\___/ %b\n' "$C_ACCENT" "$C_RESET"
+  printf '  %b                                                                     %b\n' "$C_ACCENT" "$C_RESET"
+  printf '  %b            Master your video. Sensei-grade clarity.%b\n' "$C_MUTED" "$C_RESET"
   printf '\n'
   printf '  %b installer%s v%s   %bplatform:%b %s   %bby Jubair Sensei%b\n' \
     "$C_INK" "$C_RESET" "$INSTALLER_VERSION" \
