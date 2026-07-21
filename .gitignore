@@ -86,3 +86,11 @@ scripts/_extracted/
 # Logs
 *.log
 logs/
+
+# Node.js (cli/)
+node_modules/
+cli/node_modules/
+*.tsbuildinfo
+
+# Keep dist/ COMMITTED — it's the bundled CLI users download via raw URL
+# (do NOT ignore cli/dist/)

@@ -90,12 +90,12 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for module design.
 curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
 ```
 
-Then:
+Then (v1.1.0+ — auto-everything, zero prompts):
 ```bash
-videosensei                          # friendly menu (pick / type / batch / history)
-videosensei --pick                   # open file picker directly
-videosensei video.mp4                # compress with Balanced preset
-videosensei video.mp4 -p sensei      # AV1 master (smallest)
+videosensei                          # picker + smart + compress (auto)
+videosensei video.mp4                # smart preset, auto-compress
+videosensei video.mp4 -p sensei      # AV1 master
+videosensei -i                       # interactive menu (old behavior)
 videosensei --help                   # see all options
 ```
 

@@ -18,6 +18,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] — 2026-07-21
+
+### 🎉 Major rewrite — TypeScript + auto-everything
+
+This release addresses two pieces of user feedback:
+1. **"Why not TypeScript for best terminal management?"** — Now TypeScript.
+2. **"Why not all are auto?"** — Now zero prompts by default.
+
+### Changed — Architecture
+- **Rewritten in TypeScript** with strict typing
+- 10 modular files: `types.ts`, `theme.ts`, `presets.ts`, `probe.ts`, `ffmpeg.ts`, `history.ts`, `smart.ts`, `ui.ts`, `filepicker.ts`, `main.ts`
+- Bundled to single ~50KB file with **esbuild** (`cli/dist/videosensei.js`)
+- `node_modules/` no longer needed at runtime — bundle has zero deps
+- Updated Node.js requirement: 16 → 18 (ESM + modern syntax)
+
+### Changed — UX (auto-everything)
+- **Default mode is now AUTO**: zero prompts unless user opts in
+  - `videosensei` → picker → smart preset → compress (no menu, no confirm)
+  - `videosensei file.mp4` → smart preset → compress (no confirm)
+  - `videosensei file.mp4 -p sensei` → specific preset → compress (no confirm)
+- **Smart mode is default ON** — auto-picks best preset based on source
+- **`--confirm` flag** — opt-in to confirmation prompts (old behavior)
+- **`-i, --interactive` flag** — opt-in to old menu (power users)
+- **`--no-smart` flag** — disable smart mode (use Balanced by default)
+
+### Fixed — Smart mode logic
+- No longer auto-skips small/low-bitrate videos (was too aggressive)
+- Only returns null if source is **AV1** (truly optimal codec)
+- Low-bitrate videos now get **Lite** preset (was: skipped entirely)
+- AV1 sources show clear message: "Source is already AV1 — re-encoding won't help"
+
+### Added — New flags
+- `-i, --interactive` — show old menu (pick / type / batch / history / help)
+- `--confirm` — ask before compressing (default: skip)
+- `--smart` — explicit smart mode (already default)
+- `--no-smart` — disable smart mode
+
+### Changed — File picker
+- Built into bundled CLI (no separate `filepicker.js` download)
+- Same backends: Termux:API / macOS / Linux (zenity/kdialog) / Windows / fzf
+- Pure-Node arrow-key browser fallback (no install needed)
+
+### Changed — Installer
+- Now downloads ONE file: `cli/dist/videosensei.js` (was: two files)
+- Version bumped 1.0.3 → 1.1.0
+- Smaller, simpler install flow
+
+### Removed
+- `cli/videosensei.js` (legacy plain JS, replaced by `cli/dist/videosensei.js`)
+- `cli/filepicker.js` (merged into bundle via esbuild)
+- Separate "file picker download" step in installer
+
+### One-liner install
+```bash
+curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
+```
+
+### Auto-mode usage
+```bash
+videosensei                    # picker + smart + compress (zero prompts)
+videosensei video.mp4          # smart + compress (zero prompts)
+videosensei video.mp4 -p sensei # specific preset (zero prompts)
+videosensei -i                 # interactive menu (old behavior)
+```
+
+---
+
 ## [1.0.3] — 2026-07-21
 
 ### Added
