@@ -18,7 +18,10 @@
 set -u
 
 # ── Config ──────────────────────────────────────────────────────────────────
-INSTALLER_VERSION="1.3.0"
+INSTALLER_VERSION="1.3.1"
+
+# Non-interactive flag (auto-confirm prompts; used by CI + curl|bash pipes)
+ASSUME_YES=0
 REPO_RAW="https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main"
 REPO_RELEASES="https://github.com/JubairSenseiDev/VideoSensei/releases/latest/download"
 SENSEI_DIR="$HOME/.videosensei"
@@ -48,6 +51,18 @@ p_warn() { printf '  %b⚠%b  %b\n' "$C_WARN" "$C_RESET" "$1"; }
 p_err()  { printf '  %b✗%b  %b\n' "$C_ERR" "$C_RESET" "$1" >&2; }
 die()    { p_err "$1"; exit 1; }
 have()   { command -v "$1" >/dev/null 2>&1; }
+
+# Prompt user for yes/no. If --yes was passed or stdin is not a TTY, auto-yes.
+# Usage:  if confirm "Install FFmpeg now? [Y/n]"; then ...
+confirm() {
+  if [ "$ASSUME_YES" = "1" ] || [ ! -t 0 ]; then
+    printf '  %b%s%b (auto-yes)\n' "$C_INK" "$1" "$C_RESET"
+    return 0
+  fi
+  printf '  %b%s %b' "$C_INK" "$1" "$C_RESET"
+  read -r reply
+  [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]
+}
 
 # ── Platform detection ─────────────────────────────────────────────────────
 detect_platform() {
@@ -504,35 +519,38 @@ uninstall_videosensei() {
 
 # ── Main ────────────────────────────────────────────────────────────────────
 main() {
-  show_banner
-
-  case "${1:-}" in
-    --uninstall|-u)
-      uninstall_videosensei
-      exit 0
-      ;;
-    --version|-v)
-      printf 'VideoSensei installer v%s\n' "$INSTALLER_VERSION"
-      exit 0
-      ;;
-    --help|-h)
-      cat <<EOF
+  # Parse top-level flags (including --yes / -y)
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --yes|-y)        ASSUME_YES=1; shift ;;
+      --uninstall|-u)   show_banner; uninstall_videosensei; exit 0 ;;
+      --version|-v)    printf 'VideoSensei installer v%s\n' "$INSTALLER_VERSION"; exit 0 ;;
+      --help|-h)
+        cat <<EOF
 VideoSensei installer v${INSTALLER_VERSION}
 
 Usage:
-  bash installer.sh                Install VideoSensei
-  bash installer.sh --uninstall     Remove VideoSensei
-  bash installer.sh --version       Show installer version
-  bash installer.sh --help          Show this help
+  bash installer.sh                Install VideoSensei (interactive)
+  bash installer.sh --yes          Install non-interactively (auto-confirm prompts)
+  bash installer.sh --uninstall    Remove VideoSensei
+  bash installer.sh --version      Show installer version
+  bash installer.sh --help         Show this help
 
 Platform detected: ${PLATFORM}
 
 Repo:  https://github.com/JubairSenseiDev/VideoSensei
 Site:  https://jubairsensei.com
 EOF
-      exit 0
-      ;;
-  esac
+        exit 0
+        ;;
+      *)
+        p_warn "Unknown flag: $1 (ignored)"
+        shift
+        ;;
+    esac
+  done
+
+  show_banner
 
   # ── Step 1: FFmpeg (required for any path) ────────────────────────────────
   printf '  %b[1/3]%b Checking FFmpeg...\n' "$C_INK" "$C_RESET"
@@ -545,9 +563,7 @@ EOF
       pkg install -y --reinstall ffmpeg 2>&1 | tail -3 || true
       check_ffmpeg || die "FFmpeg still broken. Manual fix: pkg update && pkg upgrade -y && pkg install --reinstall ffmpeg"
     else
-      printf '  %bInstall FFmpeg now? [Y/n] %b' "$C_INK" "$C_RESET"
-      read -r reply
-      if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
+      if confirm "Install FFmpeg now? [Y/n]"; then
         install_ffmpeg || die "FFmpeg installation failed."
       else
         die "FFmpeg is required."
@@ -589,9 +605,7 @@ EOF
       pkg install -y --reinstall nodejs 2>&1 | tail -3 || true
       check_node || die "Node.js still broken."
     else
-      printf '  %bInstall Node.js now? [Y/n] %b' "$C_INK" "$C_RESET"
-      read -r reply
-      if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
+      if confirm "Install Node.js now? [Y/n]"; then
         install_node || die "Node.js installation failed."
       else
         die "Node.js is required for fallback bundle."
