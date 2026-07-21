@@ -82,7 +82,7 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for module design.
 
 ## 📦 Install
 
-### CLI (available now)
+### CLI (available now — single binary, no runtime needed)
 
 **One-line install** (Linux / macOS / Termux / Git Bash):
 
@@ -90,7 +90,13 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for module design.
 curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
 ```
 
-Then (v1.1.0+ — auto-everything, zero prompts):
+The installer auto-detects your platform and downloads a **self-contained binary**
+(built with Bun compile). No Node.js, no Bun runtime needed at user's machine —
+just FFmpeg.
+
+Pre-built binaries: `linux-x64`, `linux-arm64` (Termux), `darwin-x64`, `darwin-arm64`, `windows-x64`.
+
+Then (v1.2.0+ — auto-everything, zero prompts):
 ```bash
 videosensei                          # picker + smart + compress (auto)
 videosensei video.mp4                # smart preset, auto-compress

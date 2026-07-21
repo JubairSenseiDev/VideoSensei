@@ -2,7 +2,13 @@
 
 import { THEME } from './theme.js';
 
-export const VERSION = '1.1.0';
+// BUILD_VERSION is injected at compile time via:
+//   esbuild: --define BUILD_VERSION='"1.2.0"'
+//   bun:     --define BUILD_VERSION='"1.2.0"'
+// Falls back to package version if not defined (dev mode).
+declare const BUILD_VERSION: string | undefined;
+export const VERSION: string =
+  (typeof BUILD_VERSION !== 'undefined' && BUILD_VERSION) || '1.2.0-dev';
 
 export function clear(): void {
   process.stdout.write('\x1b[2J\x1b[H');

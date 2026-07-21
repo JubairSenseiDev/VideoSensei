@@ -1,32 +1,22 @@
 #!/bin/bash
 # ============================================================================
-# VideoSensei — Cross-platform installer  (v1.0.1)
+# VideoSensei — Modern installer (v1.2.0)
 # ============================================================================
-# Installs VideoSensei CLI on:
-#   • Linux (Debian/Ubuntu/Fedora/Arch)
-#   • macOS (Homebrew)
-#   • Termux (Android)
-#   • Windows (Git Bash / MSYS2 / WSL)
+# Downloads the right pre-built single-binary for your platform.
+# No Node.js, no Bun runtime needed at user's machine — the binary is self-contained.
 #
-# v1.0.3 fixes:
-#   - Installer now downloads both videosensei.js and filepicker.js
-#   - Added install.sh entry point (curl | bash one-liner)
-#   - Friendly main menu (pick / type / batch / history / help)
+# Fallback: if no pre-built binary available for your platform, downloads the
+# Node.js-compatible bundle and ensures Node.js is installed.
 #
-# v1.0.2 fixes:
-#   - Detect broken Node.js/FFmpeg binaries (ABI mismatch), not just missing
-#   - Auto-run `pkg upgrade` on Termux when ABI mismatch detected
-#   - Force reinstall packages after upgrade
-#   - Clear manual-fix instructions if auto-fix fails
-#
-# v1.0.1 fixes:
-#   - Use printf instead of echo (truecolor codes now work in ALL shells)
-#   - Termux: handle mirror selection gracefully
-#   - Termux: graceful fallback if pkg fails
-#   - Better error messages with copy-paste fix instructions
+# Supported platforms (pre-built binaries):
+#   • Linux x86_64       (most desktops/servers)
+#   • Linux arm64        (Raspberry Pi 4, Termux on arm64 Android, Apple Silicon Linux VMs)
+#   • macOS x86_64       (Intel Macs)
+#   • macOS arm64        (Apple Silicon Macs)
+#   • Windows x86_64     (most Windows)
 #
 # Usage:
-#   bash installer.sh               # install
+#   bash installer.sh                # install
 #   bash installer.sh --uninstall
 #   bash installer.sh --version
 #   bash installer.sh --help
@@ -37,46 +27,57 @@
 # License: MIT
 # ============================================================================
 
-set -u  # fail on undefined vars; do NOT use -e (we handle errors manually)
+set -u
 
 # ============================================================================
 # CONFIG
 # ============================================================================
-INSTALLER_VERSION="1.1.0"
+INSTALLER_VERSION="1.2.0"
 REPO_RAW="https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main"
-CLI_URL="$REPO_RAW/cli/dist/videosensei.js"
+REPO_RELEASES="https://github.com/JubairSenseiDev/VideoSensei/releases/latest/download"
 SENSEI_DIR="$HOME/.videosensei"
 BIN_NAME="videosensei"
 
-# Detect platform
+# Detect platform + architecture
 detect_platform() {
-  case "$(uname -s)" in
-    Linux*)
-      if [ -n "${TERMUX_VERSION:-}" ] || [ -d "/data/data/com.termux" ]; then
-        echo "termux"
-      else
-        echo "linux"
-      fi
-      ;;
-    Darwin*) echo "macos" ;;
-    MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
-    *) echo "unknown" ;;
+  local os arch
+  os="$(uname -s)"
+  arch="$(uname -m)"
+
+  case "$os" in
+    Linux*)  os="linux" ;;
+    Darwin*) os="darwin" ;;
+    MINGW*|MSYS*|CYGWIN*) os="windows" ;;
+    *) os="unknown" ;;
   esac
+
+  case "$arch" in
+    x86_64|amd64) arch="x64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) arch="unknown" ;;
+  esac
+
+  # Termux detection (Android)
+  if [ "$os" = "linux" ] && { [ -n "${TERMUX_VERSION:-}" ] || [ -d "/data/data/com.termux" ]; }; then
+    echo "termux-$arch"
+    return
+  fi
+
+  echo "${os}-${arch}"
 }
 
 PLATFORM=$(detect_platform)
 
 # ============================================================================
-# COLORS — VideoSensei theme (neon green on near-black)
+# COLORS — VideoSensei theme
 # ============================================================================
-# Use printf %b for portability — works in bash, dash, sh, busybox, termux
 if [ -t 1 ]; then
-  C_ACCENT='\033[38;2;0;255;136m'      # #00FF88 neon green
+  C_ACCENT='\033[38;2;0;255;136m'
   C_ACCENT_BOLD='\033[1;38;2;0;255;136m'
-  C_INK='\033[38;2;255;255;255m'       # #FFFFFF
-  C_MUTED='\033[38;2;161;161;170m'     # #A1A1AA
-  C_WARN='\033[38;2;250;204;21m'       # #FACC15
-  C_ERR='\033[38;2;248;113;113m'       # #F87171
+  C_INK='\033[38;2;255;255;255m'
+  C_MUTED='\033[38;2;161;161;170m'
+  C_WARN='\033[38;2;250;204;21m'
+  C_ERR='\033[38;2;248;113;113m'
   C_CYAN='\033[38;2;34;211;238m'
   C_RESET='\033[0m'
   C_BOLD='\033[1m'
@@ -85,26 +86,16 @@ else
 fi
 
 # ============================================================================
-# PRINT HELPERS (use printf — works everywhere)
+# PRINT HELPERS
 # ============================================================================
-# Note: %b interprets backslash escapes in the argument, %s does not.
-
-p_line()   { printf '%b\n' "$1"; }
-p_plain()  { printf '%s\n'  "$1"; }
 p_info()   { printf '  %b●%b %b\n' "$C_ACCENT" "$C_RESET" "$1"; }
 p_ok()     { printf '  %b✓%b %b\n' "$C_ACCENT" "$C_RESET" "$1"; }
 p_warn()   { printf '  %b⚠%b  %b\n' "$C_WARN" "$C_RESET" "$1"; }
 p_err()    { printf '  %b✗%b  %b\n' "$C_ERR" "$C_RESET" "$1" >&2; }
-p_prompt() { printf '  %b' "$1"; }
 
-die() {
-  p_err "$1"
-  exit 1
-}
+die() { p_err "$1"; exit 1; }
 
-command_exists() {
-  command -v "$1" >/dev/null 2>&1
-}
+command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # ============================================================================
 # LOGO
@@ -116,7 +107,7 @@ show_logo() {
   printf '%b\n' "${C_ACCENT}  ╲  ┃█┃  ╱  ${C_RESET}${C_MUTED}by Jubair Sensei${C_RESET}"
   printf '%b\n' "${C_ACCENT}   ╲━━━━━╱   ${C_RESET}${C_MUTED}https://jubairsensei.com${C_RESET}"
   printf '\n'
-  p_info "Platform: ${C_ACCENT}${PLATFORM}${C_RESET}${C_RESET}"
+  p_info "Platform: ${C_ACCENT}${PLATFORM}${C_RESET}"
   p_info "Sensei dir: ${C_MUTED}${SENSEI_DIR}${C_RESET}"
   printf '\n'
 }
@@ -124,39 +115,13 @@ show_logo() {
 # ============================================================================
 # DEPENDENCY CHECKS
 # ============================================================================
-# Check not just that the binary exists, but that it actually RUNS.
-# On Termux, partial upgrades can leave binaries that exist but fail to link.
-check_node() {
-  if ! command_exists node; then
-    p_warn "Node.js not found"
-    return 1
-  fi
-  # Verify it actually runs (catches ABI mismatches like missing OSSL symbols)
-  local version
-  if ! version=$(node --version 2>/dev/null); then
-    p_warn "Node.js binary exists but fails to run (likely ABI mismatch)"
-    return 2  # code 2 = exists but broken
-  fi
-  version=$(echo "$version" | sed 's/v//')
-  local major
-  major=$(echo "$version" | cut -d. -f1)
-  if [ "${major:-0}" -ge 16 ] 2>/dev/null; then
-    p_ok "Node.js v${version} found and working"
-    return 0
-  else
-    p_warn "Node.js v${version} found (need >=16)"
-    return 1
-  fi
-}
-
+# For single-binary install, we only need FFmpeg (not Node.js!)
 check_ffmpeg() {
   if ! command_exists ffmpeg; then
     p_warn "FFmpeg not found"
     return 1
   fi
-  # Verify it actually runs (catches libc++ ABI mismatches)
-  local version
-  if ! version=$(ffmpeg -version 2>&1 | head -1 | awk '{print $3}'); then
+  if ! ffmpeg -version >/dev/null 2>&1; then
     p_warn "FFmpeg binary exists but fails to run (likely ABI mismatch)"
     return 2
   fi
@@ -164,64 +129,20 @@ check_ffmpeg() {
     p_warn "FFprobe not found (usually ships with FFmpeg)"
     return 1
   fi
-  # Verify ffprobe runs too
   if ! ffprobe -version >/dev/null 2>&1; then
     p_warn "FFprobe binary exists but fails to run"
     return 2
   fi
+  local version
+  version=$(ffmpeg -version 2>&1 | head -1 | awk '{print $3}')
   p_ok "FFmpeg ${version} found and working"
   return 0
 }
 
-# Detect ABI mismatch errors from a command's stderr
-# Returns 0 if ABI issue detected, 1 otherwise
-detect_abi_mismatch() {
-  local stderr_output="$1"
-  # Common patterns:
-  #   "cannot locate symbol"          — Termux partial upgrade
-  #   "CANNOT LINK EXECUTABLE"        — Termux linker error
-  #   "symbol lookup error"           — glibc version mismatch
-  #   "undefined symbol"              — Linux ABI mismatch
-  if echo "$stderr_output" | grep -qiE "cannot locate symbol|CANNOT LINK EXECUTABLE|symbol lookup error|undefined symbol"; then
-    return 0
-  fi
-  return 1
-}
-
 # ============================================================================
-# TERMUX-SPECIFIC HELPERS
+# TERMUX HELPERS
 # ============================================================================
-# On Termux, partial upgrades can leave binaries that exist but fail to link.
-# The universal fix is `pkg upgrade -y` which brings ALL packages into sync.
-# We auto-detect this situation and run pkg upgrade automatically.
-termux_fix_abi_mismatch() {
-  printf '\n'
-  p_warn "Detected Termux ABI mismatch (partial upgrade issue)."
-  p_info "Running ${C_ACCENT}pkg upgrade -y${C_RESET} to sync all packages..."
-  printf '\n'
-
-  # Run pkg upgrade — show output so user sees progress
-  if pkg upgrade -y 2>&1 | tail -20; then
-    p_ok "Package upgrade complete"
-    return 0
-  else
-    p_warn "pkg upgrade had errors. Trying pkg update + reinstall approach..."
-    pkg update -y >/dev/null 2>&1 || true
-    pkg upgrade -y 2>&1 | tail -10 || true
-    return 0  # return 0 anyway — user can re-run installer
-  fi
-}
-
-# Force reinstall a package (helps when ABI mismatch corrupts an install)
-termux_reinstall_pkg() {
-  local pkg="$1"
-  p_info "Force reinstalling ${pkg}..."
-  pkg install -y --reinstall "$pkg" 2>&1 | tail -5 || true
-}
-
 termux_setup_mirror() {
-  # If no mirror is selected, try to set a working one automatically.
-  # This is a known Termux pain point — we just pick a reliable mirror.
   local sources_file="$PREFIX/etc/apt/sources.list"
   if [ ! -f "$sources_file" ] || ! grep -q "termux-main" "$sources_file" 2>/dev/null; then
     p_info "Setting Termux mirror (packages-cf.termux.dev)..."
@@ -233,16 +154,14 @@ termux_setup_mirror() {
 
 termux_install_pkg() {
   local pkg="$1"
-  # Try up to 3 times — Termux mirrors can be flaky
   for attempt in 1 2 3; do
     p_info "Installing ${pkg} (attempt ${attempt}/3)..."
     if pkg install -y "$pkg" 2>&1 | tail -5; then
-      if command_exists "$pkg" || [ "$pkg" = "nodejs" ] && command_exists node; then
+      if command_exists "$pkg" || { [ "$pkg" = "ffmpeg" ] && command_exists ffmpeg; }; then
         return 0
       fi
     fi
     p_warn "Attempt ${attempt} failed, trying a different mirror..."
-    # Try a different mirror each retry
     case "$attempt" in
       1) echo "deb https://mirrors.cbrx.io/apt/termux/termux-main/ stable main" > "$PREFIX/etc/apt/sources.list" ;;
       2) echo "deb https://mirror.rinarin.dev/termux/termux-main/ stable main" > "$PREFIX/etc/apt/sources.list" ;;
@@ -253,97 +172,36 @@ termux_install_pkg() {
   return 1
 }
 
-# ============================================================================
-# INSTALL DEPENDENCIES
-# ============================================================================
-install_node() {
-  p_info "Installing Node.js..."
-  case "$PLATFORM" in
-    termux)
-      termux_setup_mirror
-      if ! termux_install_pkg nodejs; then
-        printf '\n'
-        p_err "Failed to install Node.js via pkg."
-        p_info "Manual fix:"
-        printf '  %btermux-change-repo%b  (pick a mirror manually)\n' "$C_ACCENT" "$C_RESET"
-        printf '  %bpkg install nodejs%b\n' "$C_ACCENT" "$C_RESET"
-        printf '  %b# Then re-run this installer%b\n' "$C_MUTED" "$C_RESET"
-        return 1
-      fi
-      # Verify it actually runs (catches ABI mismatch)
-      if ! node --version >/dev/null 2>&1; then
-        p_warn "Node.js installed but won't run — likely ABI mismatch."
-        termux_fix_abi_mismatch
-        # Try force reinstall after upgrade
-        termux_reinstall_pkg nodejs
-        if ! node --version >/dev/null 2>&1; then
-          p_err "Node.js still won't run after upgrade + reinstall."
-          p_info "Final manual fix:"
-          printf '  %bpkg update && pkg upgrade -y%b\n' "$C_ACCENT" "$C_RESET"
-          printf '  %bpkg install --reinstall nodejs%b\n' "$C_ACCENT" "$C_RESET"
-          printf '  %b# Then re-run this installer%b\n' "$C_MUTED" "$C_RESET"
-          return 1
-        fi
-      fi
-      ;;
-    linux)
-      if command_exists apt; then
-        if ! curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - 2>/dev/null; then
-          p_warn "nodesource setup failed, trying apt-get install nodejs..."
-          sudo apt-get install -y nodejs || return 1
-        else
-          sudo apt-get install -y nodejs || return 1
-        fi
-      elif command_exists dnf; then
-        sudo dnf install -y nodejs || return 1
-      elif command_exists pacman; then
-        sudo pacman -S --noconfirm nodejs || return 1
-      else
-        p_err "Could not detect package manager."
-        p_info "Install Node.js manually: https://nodejs.org/"
-        return 1
-      fi
-      ;;
-    macos)
-      if ! command_exists brew; then
-        p_err "Homebrew not found."
-        p_info "Install from https://brew.sh or download Node.js from https://nodejs.org/"
-        return 1
-      fi
-      brew install node || return 1
-      ;;
-    windows)
-      if command_exists winget; then
-        winget install OpenJS.NodeJS.LTS || return 1
-      elif command_exists choco; then
-        choco install nodejs -y || return 1
-      else
-        p_err "Could not install Node.js automatically."
-        p_info "Download from https://nodejs.org/"
-        return 1
-      fi
-      ;;
-    *)
-      p_err "Unknown platform. Install Node.js manually: https://nodejs.org/"
-      return 1
-      ;;
-  esac
-  p_ok "Node.js installed"
-  return 0
+termux_fix_abi_mismatch() {
+  printf '\n'
+  p_warn "Detected Termux ABI mismatch (partial upgrade issue)."
+  p_info "Running ${C_ACCENT}pkg upgrade -y${C_RESET} to sync all packages..."
+  printf '\n'
+  if pkg upgrade -y 2>&1 | tail -20; then
+    p_ok "Package upgrade complete"
+  else
+    p_warn "pkg upgrade had errors. Trying pkg update + reinstall..."
+    pkg update -y >/dev/null 2>&1 || true
+    pkg upgrade -y 2>&1 | tail -10 || true
+  fi
+}
+
+termux_reinstall_pkg() {
+  local pkg="$1"
+  p_info "Force reinstalling ${pkg}..."
+  pkg install -y --reinstall "$pkg" 2>&1 | tail -5 || true
 }
 
 install_ffmpeg() {
   p_info "Installing FFmpeg..."
   case "$PLATFORM" in
-    termux)
+    termux-*)
+      termux_setup_mirror
       if ! termux_install_pkg ffmpeg; then
-        printf '\n'
         p_err "Failed to install FFmpeg via pkg."
-        p_info "Manual fix:"
-        printf '  %bpkg install ffmpeg%b\n' "$C_ACCENT" "$C_RESET"
+        p_info "Manual fix: pkg install ffmpeg"
         return 1
       fi
-      # Verify it actually runs (catches libc++ ABI mismatch)
       if ! ffmpeg -version >/dev/null 2>&1; then
         p_warn "FFmpeg installed but won't run — likely ABI mismatch."
         termux_fix_abi_mismatch
@@ -353,12 +211,11 @@ install_ffmpeg() {
           p_info "Final manual fix:"
           printf '  %bpkg update && pkg upgrade -y%b\n' "$C_ACCENT" "$C_RESET"
           printf '  %bpkg install --reinstall ffmpeg%b\n' "$C_ACCENT" "$C_RESET"
-          printf '  %b# Then re-run this installer%b\n' "$C_MUTED" "$C_RESET"
           return 1
         fi
       fi
       ;;
-    linux)
+    linux-*)
       if command_exists apt; then
         sudo apt-get install -y ffmpeg || return 1
       elif command_exists dnf; then
@@ -370,17 +227,20 @@ install_ffmpeg() {
         return 1
       fi
       ;;
-    macos)
+    darwin-*)
+      if ! command_exists brew; then
+        p_err "Homebrew not found."
+        return 1
+      fi
       brew install ffmpeg || return 1
       ;;
-    windows)
+    windows-*)
       if command_exists winget; then
         winget install Gyan.FFmpeg || return 1
       elif command_exists choco; then
         choco install ffmpeg -y || return 1
       else
         p_err "Could not install FFmpeg automatically."
-        p_info "Download from https://ffmpeg.org/download.html"
         return 1
       fi
       ;;
@@ -390,15 +250,33 @@ install_ffmpeg() {
       ;;
   esac
   p_ok "FFmpeg installed"
-  return 0
 }
 
 # ============================================================================
-# INSTALL VIDOSENSEI
+# BINARY DOWNLOAD
 # ============================================================================
+# Map our platform to the binary filename
+get_binary_url() {
+  local os arch
+  os="${PLATFORM%%-*}"
+  arch="${PLATFORM##*-}"
+
+  local filename
+  case "$os-$arch" in
+    linux-x64)    filename="videosensei-linux-x64" ;;
+    linux-arm64)  filename="videosensei-linux-arm64" ;;
+    darwin-x64)   filename="videosensei-darwin-x64" ;;
+    darwin-arm64) filename="videosensei-darwin-arm64" ;;
+    windows-x64)  filename="videosensei-windows-x64.exe" ;;
+    *) return 1 ;;
+  esac
+
+  echo "${REPO_RELEASES}/${filename}"
+}
+
 determine_bin_dir() {
   case "$PLATFORM" in
-    termux)
+    termux-*)
       echo "$PREFIX/bin"
       ;;
     *)
@@ -413,7 +291,7 @@ determine_bin_dir() {
   esac
 }
 
-install_videosensei() {
+install_binary() {
   local bin_dir
   bin_dir=$(determine_bin_dir)
   mkdir -p "$bin_dir" 2>/dev/null || true
@@ -425,47 +303,46 @@ install_videosensei() {
   fi
 
   local target="$bin_dir/$BIN_NAME"
-  local tmp_js="/tmp/videosensei_install_$$.js"
-  local tmp_launcher="/tmp/videosensei_launcher_$$"
+  local tmp_bin="/tmp/videosensei_bin_$$"
 
-  p_info "Downloading VideoSensei CLI (TypeScript-built, bundled)..."
-  if ! curl -fsSL "$CLI_URL" -o "$tmp_js"; then
-    p_err "Failed to download from $CLI_URL"
-    p_info "Check your internet connection and try again."
+  local url
+  url=$(get_binary_url)
+  if [ -z "$url" ]; then
+    p_warn "No pre-built binary for ${PLATFORM}. Falling back to Node.js bundle..."
     return 1
   fi
-  p_ok "Downloaded ($(wc -c < "$tmp_js") bytes)"
+
+  p_info "Downloading pre-built binary for ${C_MUTED}${PLATFORM}${C_RESET}..."
+  p_info "URL: ${C_MUTED}${url}${C_RESET}"
+  if ! curl -fSL "$url" -o "$tmp_bin"; then
+    p_warn "Failed to download pre-built binary."
+    p_info "Falling back to Node.js bundle install..."
+    rm -f "$tmp_bin"
+    return 1
+  fi
+
+  local size
+  size=$(wc -c < "$tmp_bin")
+  p_ok "Downloaded ($(numfmt --to=iec "$size" 2>/dev/null || echo "${size} bytes"))"
+
+  chmod +x "$tmp_bin"
+
+  # Quick sanity check — does the binary actually run?
+  if ! "$tmp_bin" --version >/dev/null 2>&1; then
+    p_warn "Downloaded binary failed to run on this platform."
+    p_info "Falling back to Node.js bundle install..."
+    rm -f "$tmp_bin"
+    return 1
+  fi
+  p_ok "Binary runs correctly"
 
   p_info "Installing to ${C_MUTED}${target}${C_RESET}..."
-  local js_target="$SENSEI_DIR/videosensei.js"
-  cp "$tmp_js" "$js_target"
-  chmod +x "$js_target"
-  rm -f "$tmp_js"
-
-  # Write launcher script
-  cat > "$tmp_launcher" << EOF
-#!/data/data/com.termux/files/usr/bin/bash
-# VideoSensei launcher — auto-generated by installer v${INSTALLER_VERSION}
-exec node "$js_target" "\$@"
-EOF
-  # Fix shebang for non-termux
-  if [ "$PLATFORM" != "termux" ]; then
-    cat > "$tmp_launcher" << EOF
-#!/bin/bash
-# VideoSensei launcher — auto-generated by installer v${INSTALLER_VERSION}
-exec node "$js_target" "\$@"
-EOF
-  fi
-  chmod +x "$tmp_launcher"
-
   if [ -n "$sudo" ]; then
-    $sudo mv "$tmp_launcher" "$target"
+    $sudo mv "$tmp_bin" "$target"
   else
-    mv "$tmp_launcher" "$target" 2>/dev/null || cp "$tmp_launcher" "$target"
+    mv "$tmp_bin" "$target" 2>/dev/null || cp "$tmp_bin" "$target"
   fi
   chmod +x "$target"
-
-  rm -f "$tmp_js"
 
   # Ensure bin_dir is in PATH
   case ":$PATH:" in
@@ -474,7 +351,6 @@ EOF
       p_warn "${bin_dir} is not in your PATH"
       p_info "Add this to your shell profile (~/.bashrc or ~/.zshrc):"
       printf '  %bexport PATH="%s:$PATH"%b\n' "$C_ACCENT" "$bin_dir" "$C_RESET"
-      printf '  %b# Then: source ~/.bashrc%b\n' "$C_MUTED" "$C_RESET"
       ;;
   esac
 
@@ -482,24 +358,140 @@ EOF
   return 0
 }
 
+# ============================================================================
+# FALLBACK: Node.js bundle install (if no pre-built binary)
+# ============================================================================
+check_node() {
+  if ! command_exists node; then
+    p_warn "Node.js not found"
+    return 1
+  fi
+  if ! node --version >/dev/null 2>&1; then
+    p_warn "Node.js binary exists but fails to run (likely ABI mismatch)"
+    return 2
+  fi
+  local version major
+  version=$(node --version 2>/dev/null | sed 's/v//')
+  major=$(echo "$version" | cut -d. -f1)
+  if [ "${major:-0}" -ge 18 ] 2>/dev/null; then
+    p_ok "Node.js v${version} found and working"
+    return 0
+  else
+    p_warn "Node.js v${version} found (need >=18)"
+    return 1
+  fi
+}
+
+install_node() {
+  p_info "Installing Node.js..."
+  case "$PLATFORM" in
+    termux-*)
+      termux_setup_mirror
+      if ! termux_install_pkg nodejs; then
+        return 1
+      fi
+      if ! node --version >/dev/null 2>&1; then
+        p_warn "Node.js installed but won't run — likely ABI mismatch."
+        termux_fix_abi_mismatch
+        termux_reinstall_pkg nodejs
+        node --version >/dev/null 2>&1 || return 1
+      fi
+      ;;
+    linux-*)
+      if command_exists apt; then
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - 2>/dev/null
+        sudo apt-get install -y nodejs || return 1
+      elif command_exists dnf; then
+        sudo dnf install -y nodejs || return 1
+      elif command_exists pacman; then
+        sudo pacman -S --noconfirm nodejs || return 1
+      else
+        return 1
+      fi
+      ;;
+    darwin-*)
+      command_exists brew || return 1
+      brew install node || return 1
+      ;;
+    windows-*)
+      if command_exists winget; then
+        winget install OpenJS.NodeJS.LTS || return 1
+      elif command_exists choco; then
+        choco install nodejs -y || return 1
+      else
+        return 1
+      fi
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  p_ok "Node.js installed"
+}
+
+install_bundle_fallback() {
+  p_info "Installing Node.js bundle as fallback..."
+  local bin_dir
+  bin_dir=$(determine_bin_dir)
+  local sudo=""
+  if { [ "$bin_dir" = "/usr/local/bin" ] || [ "$bin_dir" = "/usr/bin" ]; } && [ ! -w "$bin_dir" ] 2>/dev/null && [ "$(id -u)" -ne 0 ]; then
+    sudo="sudo"
+  fi
+
+  local target="$bin_dir/$BIN_NAME"
+  local tmp_js="/tmp/videosensei_bundle_$$.js"
+  local tmp_launcher="/tmp/videosensei_launcher_$$"
+
+  p_info "Downloading Node.js bundle..."
+  if ! curl -fsSL "${REPO_RAW}/cli/dist/videosensei.js" -o "$tmp_js"; then
+    p_err "Failed to download bundle."
+    return 1
+  fi
+  p_ok "Downloaded bundle"
+
+  local js_target="$SENSEI_DIR/videosensei.js"
+  cp "$tmp_js" "$js_target"
+  chmod +x "$js_target"
+  rm -f "$tmp_js"
+
+  cat > "$tmp_launcher" << EOF
+#!/bin/bash
+# VideoSensei launcher — auto-generated by installer v${INSTALLER_VERSION}
+exec node "$js_target" "\$@"
+EOF
+  chmod +x "$tmp_launcher"
+
+  if [ -n "$sudo" ]; then
+    $sudo mv "$tmp_launcher" "$target"
+  else
+    mv "$tmp_launcher" "$target" 2>/dev/null || cp "$tmp_launcher" "$target"
+  fi
+  chmod +x "$target"
+  rm -f "$tmp_launcher"
+
+  p_ok "Installed to $target (Node.js bundle)"
+}
+
+# ============================================================================
+# VERIFY
+# ============================================================================
 verify_installation() {
   if command_exists videosensei; then
     local version
     version=$(videosensei --version 2>/dev/null | head -1)
     p_ok "VideoSensei is ready: ${C_ACCENT}${version}${C_RESET}"
     printf '\n'
-    printf '  %bQuick start:%b\n' "$C_BOLD" "$C_RESET"
-    printf '  %bvideosensei%b                          %b# interactive mode%b\n' "$C_ACCENT" "$C_RESET" "$C_MUTED" "$C_RESET"
-    printf '  %bvideosensei%b video.mp4                 %b# compress with Balanced preset%b\n' "$C_ACCENT" "$C_RESET" "$C_MUTED" "$C_RESET"
-    printf '  %bvideosensei%b video.mp4 -p sensei       %b# AV1 master%b\n' "$C_ACCENT" "$C_RESET" "$C_MUTED" "$C_RESET"
-    printf '  %bvideosensei%b --help                    %b# full options%b\n' "$C_ACCENT" "$C_RESET" "$C_MUTED" "$C_RESET"
+    printf '  %bQuick start (auto-mode, zero prompts):%b\n' "$C_BOLD" "$C_RESET"
+    printf '  %bvideosensei%b                          %b# picker + smart + compress%b\n' "$C_ACCENT" "$C_RESET" "$C_MUTED" "$C_RESET"
+    printf '  %bvideosensei%b video.mp4                %b# smart preset, auto-compress%b\n' "$C_ACCENT" "$C_RESET" "$C_MUTED" "$C_RESET"
+    printf '  %bvideosensei%b video.mp4 -p sensei      %b# AV1 master%b\n' "$C_ACCENT" "$C_RESET" "$C_MUTED" "$C_RESET"
+    printf '  %bvideosensei%b -i                       %b# interactive menu%b\n' "$C_ACCENT" "$C_RESET" "$C_MUTED" "$C_RESET"
     printf '\n'
     printf '  %bHack the size. Keep the clarity.%b\n' "$C_MUTED" "$C_RESET"
     printf '  %bhttps://jubairsensei.com%b\n' "$C_MUTED" "$C_RESET"
   else
     p_err "Installation verification failed."
     p_info "Try running 'videosensei --version' manually."
-    p_info "If not found, your PATH may need updating (see warning above)."
     return 1
   fi
 }
@@ -530,8 +522,6 @@ uninstall_videosensei() {
     if [ "${reply:-}" = "y" ] || [ "${reply:-}" = "Y" ]; then
       rm -rf "$SENSEI_DIR"
       p_ok "Removed $SENSEI_DIR"
-    else
-      p_info "Kept $SENSEI_DIR"
     fi
   fi
 
@@ -546,92 +536,25 @@ main() {
   show_logo
 
   case "${1:-}" in
-    --uninstall|-u)
-      uninstall_videosensei
-      exit 0
-      ;;
-    --version|-v)
-      printf 'VideoSensei installer v%s\n' "$INSTALLER_VERSION"
-      exit 0
-      ;;
-    --help|-h)
-      printf 'Usage: bash installer.sh [--uninstall|--version|--help]\n'
-      exit 0
-      ;;
+    --uninstall|-u)  uninstall_videosensei; exit 0 ;;
+    --version|-v)    printf 'VideoSensei installer v%s\n' "$INSTALLER_VERSION"; exit 0 ;;
+    --help|-h)       printf 'Usage: bash installer.sh [--uninstall|--version|--help]\n'; exit 0 ;;
   esac
 
-  # Step 1: Node.js
-  # check_node returns:
-  #   0 = OK
-  #   1 = missing or too old
-  #   2 = exists but BROKEN (ABI mismatch) — needs reinstall + maybe pkg upgrade
-  check_node
-  node_status=$?
-  if [ "$node_status" -ne 0 ]; then
-    if [ "$node_status" -eq 2 ]; then
-      # Broken binary — on Termux, this is almost always ABI mismatch
-      if [ "$PLATFORM" = "termux" ]; then
-        termux_fix_abi_mismatch
-        termux_reinstall_pkg nodejs
-        if check_node; then
-          p_ok "Node.js fixed after upgrade + reinstall"
-        else
-          p_err "Node.js still broken after fix attempt."
-          p_info "Final manual fix:"
-          printf '  %bpkg update && pkg upgrade -y%b\n' "$C_ACCENT" "$C_RESET"
-          printf '  %bpkg install --reinstall nodejs%b\n' "$C_ACCENT" "$C_RESET"
-          die "Please run the manual commands above, then re-run this installer."
-        fi
-      else
-        # On Linux/Mac/Windows: just reinstall
-        printf '  %bReinstall Node.js now? [Y/n] %b' "$C_BOLD" "$C_RESET"
-        read -r reply
-        if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
-          if ! install_node; then
-            die "Node.js installation failed."
-          fi
-        else
-          die "Node.js is broken. Please reinstall from https://nodejs.org/"
-        fi
-      fi
-    else
-      # Missing or too old
-      printf '  %bInstall Node.js now? [Y/n] %b' "$C_BOLD" "$C_RESET"
-      read -r reply
-      if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
-        if ! install_node; then
-          die "Node.js installation failed."
-        fi
-      else
-        die "Node.js is required. Install manually from https://nodejs.org/"
-      fi
-    fi
-  fi
-
-  # Step 2: FFmpeg (same logic as Node.js)
+  # Step 1: FFmpeg (required for any install path)
   check_ffmpeg
   ffmpeg_status=$?
   if [ "$ffmpeg_status" -ne 0 ]; then
     if [ "$ffmpeg_status" -eq 2 ]; then
-      if [ "$PLATFORM" = "termux" ]; then
+      if [ "${PLATFORM%%-*}" = "termux" ]; then
         termux_fix_abi_mismatch
         termux_reinstall_pkg ffmpeg
-        if check_ffmpeg; then
-          p_ok "FFmpeg fixed after upgrade + reinstall"
-        else
-          p_err "FFmpeg still broken after fix attempt."
-          p_info "Final manual fix:"
-          printf '  %bpkg update && pkg upgrade -y%b\n' "$C_ACCENT" "$C_RESET"
-          printf '  %bpkg install --reinstall ffmpeg%b\n' "$C_ACCENT" "$C_RESET"
-          die "Please run the manual commands above, then re-run this installer."
-        fi
+        check_ffmpeg || die "FFmpeg still broken. Run: pkg update && pkg upgrade -y && pkg install --reinstall ffmpeg"
       else
         printf '  %bReinstall FFmpeg now? [Y/n] %b' "$C_BOLD" "$C_RESET"
         read -r reply
         if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
-          if ! install_ffmpeg; then
-            die "FFmpeg installation failed."
-          fi
+          install_ffmpeg || die "FFmpeg installation failed."
         else
           die "FFmpeg is broken. Please reinstall manually."
         fi
@@ -640,21 +563,54 @@ main() {
       printf '  %bInstall FFmpeg now? [Y/n] %b' "$C_BOLD" "$C_RESET"
       read -r reply
       if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
-        if ! install_ffmpeg; then
-          die "FFmpeg installation failed."
-        fi
+        install_ffmpeg || die "FFmpeg installation failed."
       else
         die "FFmpeg is required. Install manually."
       fi
     fi
   fi
 
-  # Step 3: Download + install
-  if ! install_videosensei; then
-    die "Failed to install VideoSensei."
+  # Step 2: Try pre-built binary first (no Node.js needed!)
+  if install_binary; then
+    printf '\n'
+    verify_installation
+    exit 0
   fi
 
-  # Step 4: Verify
+  # Step 3: Fallback to Node.js bundle
+  p_info "Pre-built binary unavailable for ${PLATFORM}. Using Node.js bundle."
+  printf '\n'
+
+  check_node
+  node_status=$?
+  if [ "$node_status" -ne 0 ]; then
+    if [ "$node_status" -eq 2 ]; then
+      if [ "${PLATFORM%%-*}" = "termux" ]; then
+        termux_fix_abi_mismatch
+        termux_reinstall_pkg nodejs
+        check_node || die "Node.js still broken. Run: pkg update && pkg upgrade -y && pkg install --reinstall nodejs"
+      else
+        printf '  %bReinstall Node.js now? [Y/n] %b' "$C_BOLD" "$C_RESET"
+        read -r reply
+        if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
+          install_node || die "Node.js installation failed."
+        else
+          die "Node.js is broken. Please reinstall from https://nodejs.org/"
+        fi
+      fi
+    else
+      printf '  %bInstall Node.js now? [Y/n] %b' "$C_BOLD" "$C_RESET"
+      read -r reply
+      if [ -z "${reply:-}" ] || [ "${reply}" = "y" ] || [ "${reply}" = "Y" ]; then
+        install_node || die "Node.js installation failed."
+      else
+        die "Node.js is required for fallback bundle. Install from https://nodejs.org/"
+      fi
+    fi
+  fi
+
+  install_bundle_fallback || die "Failed to install Node.js bundle."
+
   printf '\n'
   verify_installation
 }

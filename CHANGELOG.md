@@ -18,6 +18,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] — 2026-07-21
+
+### 🚀 Modern distribution — single-binary via Bun compile
+
+This release modernizes the distribution pipeline using **Bun's `--compile` flag**
+to produce self-contained executables. Users no longer need Node.js installed.
+
+### Added — Pre-built binaries (5 platforms)
+- **`videosensei-linux-x64`** — most Linux desktops/servers
+- **`videosensei-linux-arm64`** — Raspberry Pi 4, Termux on arm64 Android, Apple Silicon Linux VMs
+- **`videosensei-darwin-x64`** — Intel Macs
+- **`videosensei-darwin-arm64`** — Apple Silicon Macs (M1/M2/M3/M4)
+- **`videosensei-windows-x64.exe`** — most Windows installations
+
+Each binary is ~95 MB (contains Bun runtime + bundled app).
+**Zero runtime dependencies** — just FFmpeg on the system.
+
+### Changed — Installer (v1.1.0 → v1.2.0)
+- Now downloads pre-built binary first (no Node.js needed!)
+- Falls back to Node.js bundle if no binary for platform
+- Detects platform + architecture automatically:
+  - `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`, `windows-x64`
+  - Termux detection: `termux-arm64`, `termux-x64`
+- Sanity-checks downloaded binary actually runs before installing
+- Clear messaging about which path was taken
+
+### Changed — Build system
+- Added `bun build --compile` scripts to package.json:
+  - `build:bun:linux-x64`, `build:bun:linux-arm64`
+  - `build:bun:darwin-x64`, `build:bun:darwin-arm64`
+  - `build:bun:windows-x64`
+  - `build:bun:all` (builds all 5)
+- Renamed `build` → `build:bundle` (for Node.js fallback path)
+- `BUILD_VERSION` compile-time constant injected via `--define`
+- Binary knows its version without reading package.json
+
+### Changed — CI workflow (`.github/workflows/ci.yml`)
+- **6 jobs** in parallel:
+  1. `build-node` — typecheck + esbuild bundle
+  2. `build-binaries` — cross-compile 5 binaries (matrix strategy)
+  3. `test-cli` — test Node bundle on Node 18/20/22
+  4. `test-binary` — test linux-x64 binary on Linux
+  5. `test-installer` — test installer on clean Ubuntu
+  6. `release` — auto-publish GitHub Release with all artifacts on `v*` tag
+- Uses `oven-sh/setup-bun@v2` action for Bun
+- All artifacts uploaded to GitHub Release
+
+### Removed
+- Old `build` script (renamed to `build:bundle`)
+- Single `build:cjs` script (unused, ESM is the default)
+
+### Why Bun compile?
+- **Zero runtime deps at user's machine** — just download + run
+- **No PATH conflicts** with user's Node.js version
+- **Faster startup** — Bun's startup is ~4x faster than Node.js
+- **Self-contained** — no `node_modules`, no install scripts, no surprises
+- **Cross-compile** — single Linux x64 runner builds all 5 platforms
+
+### Install (one-liner, unchanged)
+```bash
+curl -fsSL https://raw.githubusercontent.com/JubairSenseiDev/VideoSensei/main/install.sh | bash
+```
+
+### Manual binary download
+```bash
+# Linux x64
+curl -fSL https://github.com/JubairSenseiDev/VideoSensei/releases/latest/download/videosensei-linux-x64 -o videosensei
+chmod +x videosensei && sudo mv videosensei /usr/local/bin/
+
+# Termux (Android arm64)
+curl -fSL https://github.com/JubairSenseiDev/VideoSensei/releases/latest/download/videosensei-linux-arm64 -o $PREFIX/bin/videosensei
+chmod +x $PREFIX/bin/videosensei
+```
+
+---
+
 ## [1.1.0] — 2026-07-21
 
 ### 🎉 Major rewrite — TypeScript + auto-everything

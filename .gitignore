@@ -94,3 +94,8 @@ cli/node_modules/
 
 # Keep dist/ COMMITTED — it's the bundled CLI users download via raw URL
 # (do NOT ignore cli/dist/)
+
+# Bun-compiled binaries (large, distributed via GitHub Releases)
+cli/dist/videosensei
+cli/dist/videosensei-*
+!cli/dist/videosensei.js
